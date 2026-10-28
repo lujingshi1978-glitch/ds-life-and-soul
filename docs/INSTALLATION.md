@@ -78,7 +78,9 @@ Windows 受限创造需要额外准备可验证的 LPAC 运行时。缺少运行
 
 ## QQ 与其他账号
 
-本包不下载、不分发、不启动 SnowLuma。先自行准备可用的 OneBot11 网关，再编辑本机 `packages/feiyu/config.json`：设 `snowluma.enabled` 为 `true`，填写实际的本机 WS/HTTP 地址、令牌与管理员 QQ，并检查白名单。保存后使用本包的停止/启动入口重载。
+本包不下载、不分发、不启动QQ网关。先单独安装并登录网关，开启本机HTTP服务端与正向WebSocket服务端，再使用首次安装中的QQ接入选项，或停止本包后双击 `scripts/配置QQ.cmd`。向导会检查令牌、在线状态和两条连接的账号一致性，通过后备份并保存配置。具体地址、聊天范围与排错见 [QQ接入指南](QQ_SETUP.md)。
+
+命令行入口为 `node scripts/deploy.mjs qq`；只读检查为 `node scripts/deploy.mjs qq-check`。配置字段仍沿用历史名称 `snowluma`，不表示只能连接SnowLuma。向导不会开启原本关闭的主动联系或其他平台行动权限。
 
 没有配置 QQ 时，桌面聊天仍使用同一份角色记忆。不要为了测试而把现有账号或他人的真实记录复制进公开目录。
 

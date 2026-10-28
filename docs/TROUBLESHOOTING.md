@@ -38,7 +38,7 @@
 
 ## QQ 未连接
 
-全新安装的 QQ 默认关闭。自行准备 OneBot11 网关后，核对 `snowluma.enabled`、WS/HTTP 地址、令牌、管理员与白名单。不要把 HTTP 端口填成 WS 端口。网关自身的登录问题在网关界面处理。
+全新安装的QQ默认关闭。网关登录后，使用 `scripts/配置QQ.cmd` 配置连接，或运行 `node scripts/deploy.mjs qq-check` 只读检查。HTTP和正向WS必须属于同一个已在线账号，不能把管理页面或反向WS地址填进去；连接令牌也可能与WebUI管理令牌不同。完整步骤见 [QQ接入指南](QQ_SETUP.md)。
 
 ## 网页或平台能力不可用
 

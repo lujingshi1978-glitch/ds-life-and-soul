@@ -23,6 +23,7 @@ async function fixture(t) {
     fs.cpSync(path.join(repo, entry), destination, { recursive: true });
   }
   fs.copyFileSync(path.join(repo, 'scripts/owned-processes.mjs'), path.join(dir, 'scripts/owned-processes.mjs'));
+  fs.copyFileSync(path.join(repo, 'scripts/qq-setup.mjs'), path.join(dir, 'scripts/qq-setup.mjs'));
   const core = path.join(dir, 'packages/feiyu');
   const sourceCore = path.join(repo, 'packages/feiyu');
   if (!fs.existsSync(path.join(sourceCore, 'node_modules/js-yaml'))) {

@@ -78,6 +78,6 @@ node scripts/check-public-package.mjs
 
 本项目源代码沿用 MIT，并保留 qq-bridge 与 QSH 原作者的版权声明。第三方组件各自适用其许可证，见 [第三方说明](THIRD_PARTY_NOTICES.md) 和 [licenses/](licenses/)。
 
-DeepSeek Harness 通过官方 npm 包安装。SnowLuma 本体不随本包分发，启动器也不会自动下载或启动它。使用者可以自行配置已获使用许可的 OneBot11 网关。旧的 `@snowluma/sdk` 和 `@snowluma/mcp` 依赖已从本公开包移除。
+DeepSeek Harness 通过官方 npm 包安装。QQ登录端需要另行安装并登录，本包不分发或自动启动SnowLuma等网关。首次安装可选择QQ接入向导，已有安装可双击 `scripts/配置QQ.cmd`：填写本机HTTP/正向WS地址、连接令牌、管理员与聊天范围，查询连接和账号状态通过后才保存。详细步骤见 [QQ接入指南](docs/QQ_SETUP.md)。旧的 `@snowluma/sdk` 和 `@snowluma/mcp` 依赖已从本公开包移除。
 
 欢迎提交可复现问题、回归测试和改进。请先阅读 [贡献说明](CONTRIBUTING.md) 与 [安全报告说明](SECURITY.md)。

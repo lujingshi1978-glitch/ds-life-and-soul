@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash, randomBytes } from "node:crypto";
 import { stopOwned, inspectProcess } from "./owned-processes.mjs";
 import { createInterface } from "node:readline/promises";
+import { saveQqConfig, probeQqGateway, qqErrorMessage, createQqPrompts } from "./qq-setup.mjs";
 export const REPO = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "..",
@@ -624,7 +625,16 @@ export async function doctor() {
     voiceRuntime: exists(pythonPath()),
     profile: c?.profile || null,
     privateDataIncluded: false,
+    qq: await checkQq(),
   };
+}
+export async function checkQq() {
+  const file = path.join(CORE, "config.json");
+  if (!exists(file)) return {ok:true,configured:false,enabled:false};
+  let cfg; try { cfg = json(file); } catch { return {ok:false,enabled:false,message:"本机配置无法解析，请先核对JSON格式。"}; }
+  if (cfg.snowluma?.enabled !== true) return {ok:true,configured:true,enabled:false};
+  try { return {enabled:true,...await probeQqGateway({...cfg.snowluma,ownerQQ:cfg.ownerQQ,privateIds:cfg.allow?.private,groupIds:cfg.allow?.groups})}; }
+  catch (e) { return {ok:false,enabled:true,message:qqErrorMessage(e)}; }
 }
 async function wizard() {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -646,10 +656,37 @@ async function wizard() {
       (await rl.question("安装B站/动图可选插件？[y/N] "))
         .trim()
         .toLowerCase() === "y";
-    return { ...DEFAULTS, ownerQQ: owner, voice, browser, video };
+    const qqWizard = (await rl.question("安装完成后配置QQ接入？需先自行安装并登录网关 [y/N] ")).trim().toLowerCase() === "y";
+    return { ...DEFAULTS, ownerQQ: owner, voice, browser, video, qqWizard };
   } finally {
     rl.close();
   }
+}
+export async function configureQq() {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) throw Error("QQ向导需要交互终端，请双击 scripts/配置QQ.cmd。");
+  const configFile = path.join(CORE, "config.json");
+  if (!exists(configFile)) throw Error("请先运行启动肥鱼完成安装。");
+  const before = fs.readFileSync(configFile); let current;
+  try { current = JSON.parse(before); } catch { throw Error("本机配置无法解析，请先核对JSON格式。"); }
+  const prompts = createQqPrompts(), ask = prompts.ask;
+  try {
+    console.log("QQ接入：先在网关登录账号，开启本机HTTP服务端和正向WebSocket服务端，两个服务设置相同令牌。\n支持按OneBot11协议连接；不同实现的扩展功能仍需实际验证。\n不下载网关、不发送测试消息、不开放所有好友或自主联系权限。");
+    await ask("网关名称（仅用于本次确认）", "NapCat / SnowLuma / 其他OneBot11");
+    const wsUrl = await ask("正向WebSocket根地址", current.snowluma?.wsUrl || "ws://127.0.0.1:3001");
+    const httpUrl = await ask("HTTP根地址", current.snowluma?.httpUrl || "http://127.0.0.1:3000");
+    const accessToken = await prompts.secret("连接令牌（不回显，留空保留已有值）", current.snowluma?.accessToken || "");
+    const ownerQQ = await ask("管理员QQ（不是肥鱼登录的账号）", String(current.ownerQQ || ""));
+    const privateText = await ask("允许回复的其他QQ，逗号分隔；填 - 清空，管理员会单独保留", (current.allow?.private || []).filter(x => String(x) !== String(ownerQQ)).join(","));
+    const groupText = await ask("允许回复的群号，逗号分隔；填 - 清空", (current.allow?.groups || []).join(","));
+    const input = {wsUrl,httpUrl,accessToken,ownerQQ,privateIds:privateText === "-" ? [] : privateText,groupIds:groupText === "-" ? [] : groupText};
+    console.log("将仅启用QQ连接并保存上述聊天范围。现有黑名单、核心、记忆与自主联系开关保留。\n检查只调用查询登录和在线状态的接口；通过后才保存，并备份旧配置。");
+    if ((await ask("检查并保存？输入 yes 确认", "no")).toLowerCase() !== "yes") return {ok:true,saved:false,cancelled:true};
+    const c = exists(setupFile) ? json(setupFile) : DEFAULTS;
+    const result = await saveQqConfig({root:REPO,input,expectedBytes:before,isRunning:async()=>await portOpen(Number(current.consolePort || c.consolePort)) || await portOpen(Number(current.companion?.port || c.companionPort))});
+    console.log("QQ连接和登录检查通过，已保存。请重新运行启动肥鱼；登录账号与双方令牌不写入本次输出。");
+    return result;
+  } catch (e) { throw Error(qqErrorMessage(e)); }
+  finally { prompts.close(); }
 }
 export async function main(argv = process.argv.slice(2)) {
   const [action = "launch", ...flags] = argv;
@@ -657,6 +694,8 @@ export async function main(argv = process.argv.slice(2)) {
   const supplied = configArg ? json(path.resolve(configArg.slice(9))) : null;
   if (action === "plan") return commandPlan(supplied || DEFAULTS);
   if (action === "doctor") return doctor();
+  if (action === "qq") return configureQq();
+  if (action === "qq-check") return checkQq();
   if (action === "stop") return stop();
   if (action === "uninstall") {
     if (!exists(setupFile)) return { ok: true, removed: false };
@@ -666,10 +705,17 @@ export async function main(argv = process.argv.slice(2)) {
     );
     return api.uninstallProfile({ dshHome: c.dshHome, profile: c.profile });
   }
-  if (action === "setup") return install(supplied || (await wizard()));
+  if (action === "setup") {
+    const c = supplied || await wizard(), result = await install(c);
+    if (c.qqWizard) result.qq = await configureQq();
+    return result;
+  }
   if (!["launch", "start"].includes(action))
-    throw Error("使用 launch|setup|start|stop|doctor|plan|uninstall");
-  if (!exists(setupFile)) await install(supplied || (await wizard()));
+    throw Error("使用 launch|setup|start|stop|doctor|plan|qq|qq-check|uninstall");
+  if (!exists(setupFile)) {
+    const c = supplied || await wizard(); await install(c);
+    if (c.qqWizard) await configureQq();
+  }
   return start({
     open: !flags.includes("--no-open"),
     client: !flags.includes("--no-client"),
