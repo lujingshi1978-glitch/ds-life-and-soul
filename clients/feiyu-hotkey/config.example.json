@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "gateway_url": "http://127.0.0.1:3116/pet",
+  "credentials_file": "",
+  "hotkey": "Ctrl+Alt+Space",
+  "timeout_seconds": 180,
+  "voice_playback": true
+}

@@ -1,0 +1,11 @@
+Creator runtime is an optional Windows LPAC capability.
+
+The source plugin contains the isolation helpers and the feiyu-creator preset.
+No private runtime, binaries, credentials or cached node_modules are distributed.
+FEIYU_CREATOR_RUNTIME selects an independently provisioned, hash-pinned runtime.
+The default is <core>/work/creator-runtime/runtime-v1. Missing/unverified runtime
+is a hard failure. Do not weaken this check or replace LPAC with host execution.
+
+Building, licensing and validating the external creator runtime on a fresh
+machine remain separate from installing this bundle. Its absence does not
+prevent normal chat, memory, the local console or the shortcut client.

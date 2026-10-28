@@ -1,0 +1,14 @@
+[project]
+name = "feiyu-hotkey"
+version = "1.0.0"
+description = "Small Windows chat window for the same DSH Feiyu backend"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["PySide6>=6.5,<7", "sounddevice==0.5.6", "numpy>=1.26,<3"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "BLE", "UP"]

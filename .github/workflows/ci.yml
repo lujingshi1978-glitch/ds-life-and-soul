@@ -1,0 +1,28 @@
+name: Source and boundary checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: packages/feiyu/package-lock.json
+      - name: Install locked core dependencies
+        run: npm ci --ignore-scripts --no-audit --fund=false
+        working-directory: packages/feiyu
+      - name: Deployment and public package tests
+        run: node --test tests/*.mjs
+      - name: Core memory and transport tests
+        run: npm test
+        working-directory: packages/feiyu
+      - name: Current UI contract
+        run: node scripts/test-life-console.mjs
+        working-directory: packages/feiyu
+      - name: Public source gate
+        run: node scripts/check-public-package.mjs

@@ -1,0 +1,7 @@
+- insert:
+    - id: qq-chat-cycle-host
+      name: ./qq-chat-cycle-host.mjs
+      config: {}
+    - id: feiyu-thought-host
+      name: ./feiyu-thought-host.mjs
+      config: {}

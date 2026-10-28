@@ -1,0 +1,9 @@
+# 归属与依赖记录
+
+本模块为肥鱼开源包的独立运行时部署辅助，按随包MIT许可证分发。ASR返回格式沿用qq-bridge中已有本地Whisper通道；不包含其Bili元数据、账户或凭据逻辑。
+
+源码包不捆绑Python、第三方wheel、动态库、FFmpeg二进制或模型权重。安装后应保留实际依赖发行版随附许可。已从本机现有元数据核对的主要记录：faster-whisper1.2.1为MIT；原客户端PySide6/Qt采用其发行版提供的LGPL/GPL/商业许可选项，sounddevice为MIT、NumPy为BSD；Pillow和python-docx是独立可选组；PyMuPDF元数据标AGPL/商业选项，因此独立显式选择。
+
+PyAV是faster-whisper的必需依赖，相关FFmpeg组件以实际安装wheel内的构建与许可文件为准。本文不是对未安装的未来wheel作统一许可保证。
+
+模型由用户显式选择后从固定官方Systran仓库下载，适用上游模型许可与声明；不把模型权重放入开源源码包。来源和完整revision记录在README及安装manifest中。

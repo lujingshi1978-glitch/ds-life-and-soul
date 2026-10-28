@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "artifacts": [
+    {
+      "binary": "packages/feiyu/plugins/qq-agent-presets/creator-pipe-shim.node",
+      "source": "packages/feiyu/plugins/qq-agent-presets/creator-pipe-shim.c",
+      "licenseFile": "packages/feiyu/plugins/qq-agent-presets/LICENSE",
+      "license": "MIT",
+      "sha256": "a07356dff84c252d60b294b14674775018ba2aeee2148314ca5c13ff4cbad836",
+      "sourceSha256": "f0ceace5a1d54257d34df692aa7a6c7bb5ea443ceac38b734d1f7564feaf3756",
+      "licenseSha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef",
+      "size": 106496,
+      "compatibility": {
+        "platform": "win32",
+        "arch": "x64",
+        "api": "Node-API"
+      },
+      "build": {
+        "rebuiltForRelease": true,
+        "compiler": "Microsoft C/C++ x64 19.44.35229",
+        "linker": "Microsoft Linker 14.44.35229.0",
+        "command": "cl /LD /O2 /GS /guard:cf /utf-8 creator-pipe-shim.c advapi32.lib /Fe:creator-pipe-shim.node /link /INCREMENTAL:NO /Brepro",
+        "reproducibility": "Two isolated builds produced identical binary SHA-256",
+        "documentation": "licenses/NATIVE_BUILD.md"
+      },
+      "behavior": "Pipe compatibility within the same AppContainer; fails closed outside it; no host-execution fallback",
+      "creatorExecutionTested": false
+    }
+  ]
+}

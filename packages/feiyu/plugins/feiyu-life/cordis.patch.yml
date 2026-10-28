@@ -1,0 +1,5 @@
+# Native DSH bundle patch. Relative plugin names are anchored by dsh-app-boot.
+- insert:
+    - id: feiyu-life
+      name: ./lib/index.mjs
+      config: {}

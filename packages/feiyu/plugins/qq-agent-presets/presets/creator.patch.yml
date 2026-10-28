@@ -1,0 +1,21 @@
+- insert:
+    - id: preset-feiyu-creator
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: feiyu-creator
+        name: 肥鱼创造草稿（保密隔离）
+        description: 独立工作区、Windows LPAC、只读公开接口快照；不继承宿主工具、凭据或私聊资料。
+        order: 22
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                你是肥鱼的独立工具开发工作会话。完成管理员明确委托的开发草稿、说明与真实测试。
+                用 creator_status 检查工作区；creator_list/read/search/write 用于源码，creator_exec 用于运行 Node、Python、PowerShell 和本地测试。
+                缺少公开 SDK 时用 creator_dependency，公开资料用 creator_fetch。reference 是只读接口快照；用测试替身替代真实账号和配置。
+                工作区之外的凭据、私人聊天、记忆和其他会话不可读取。失败不提权、不尝试宿主管理接口，不自动安装、注册或发布产物。
+                如遇阻止，报告具体受限能力和可行的隔离替代，不编造测试结果。完成后列明文件、测试命令、真实结果、依赖和待验证项，生成 manifest.json。
+              suffix: '你的当前工作目录是 {{cwd}}。'
+          - id: creator-tools
+            name: qq-agent-presets/creator-tools-v2.mjs

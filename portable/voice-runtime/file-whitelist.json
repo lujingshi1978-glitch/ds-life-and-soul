@@ -1,0 +1,6 @@
+[
+  "install.mjs", "index.mjs", "download-model.py", "local-asr.py",
+  "requirements-voice.txt", "requirements-media-files.txt", "requirements-pdf-agpl.txt",
+  "package.json", "README.md", "NOTICE.md", "LICENSE", ".gitignore", "file-whitelist.json",
+  "test-runtime.mjs", "test_local_asr.py", "test_downloader.py"
+]

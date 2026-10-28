@@ -1,0 +1,16 @@
+{
+  "name": "feiyu-life",
+  "version": "0.3.0",
+  "description": "Feiyu Life host integration for DeepSeek Harness",
+  "type": "module",
+  "main": "./lib/index.mjs",
+  "exports": { ".": "./lib/index.mjs", "./package.json": "./package.json" },
+  "license": "MIT",
+  "engines": { "node": ">=22.13.0" },
+  "files": ["lib/*.mjs", "cordis.patch.yml", "README.md", "LICENSE"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-host-webserver": "0.2.0-rc.2"
+  }
+}

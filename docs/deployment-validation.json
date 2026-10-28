@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-28",
+  "result": "passed",
+  "platform": "Windows",
+  "versions": {
+    "node": "24.19.0",
+    "officialDsh": "0.2.0-rc.2",
+    "nativeFeiyuPlugin": "0.3.0"
+  },
+  "dependencyProvenance": {
+    "registry": "https://registry.npmjs.org",
+    "core": "fresh official npm installation during this release build",
+    "officialDsh": "fresh official npm installation during this release build",
+    "dshPackagesInstalled": 538,
+    "approvedNativeAndRuntimeBuildScripts": 5,
+    "globalDshUsedForFinalAcceptance": false,
+    "fixtureReuse": "Read-only reuse of these fresh release installations avoided duplicate downloads."
+  },
+  "deploymentTests": {
+    "passed": 17,
+    "failed": 0,
+    "coverage": [
+      "configuration validation and side-effect-free planning",
+      "idempotent fresh configuration and profile installation",
+      "operator configuration preservation and exact profile restoration",
+      "modified profile and occupied port refusal",
+      "non-default bridge origin propagation to native plugin and three MCP clients",
+      "process identity verification and descendant cleanup",
+      "real Windows Unicode process identity roundtrip"
+    ]
+  },
+  "isolatedRuntime": {
+    "checksPassed": 8,
+    "chineseAndSpacedPath": true,
+    "freshDshHomeAndProfile": true,
+    "nativePluginLoaded": true,
+    "nativePluginBridgeState": "ready",
+    "bridgeReady": true,
+    "mcpClientProcessesObserved": 3,
+    "freshMemoryCount": 0,
+    "memoryAuthBoundary": "passed",
+    "companionAuthAndChannelBoundary": "passed",
+    "voice": false,
+    "browser": false,
+    "video": false,
+    "modelRequestsMadeByAudit": 0,
+    "messageRequestsMadeByAudit": 0,
+    "recordedModelUsageLines": 0,
+    "networkGuardBlockedAttempts": 0,
+    "externalNetworkAllowed": false,
+    "existingServicePortsAllowed": false
+  },
+  "shutdown": {
+    "controllerResult": "passed",
+    "verifiedProcessesStopped": 8,
+    "remainingOwnedProcesses": 0,
+    "unverifiedProcessRecords": 0,
+    "servicePortsClosed": 3,
+    "extraForcedCleanupRequired": false,
+    "userDataRemoved": false
+  },
+  "limitations": [
+    "Core and DSH dependencies were freshly installed from the official npm registry during this release build. The isolated fixture reused those installations; duplicate downloads were not repeated inside the fixture.",
+    "Voice, browser and video dependencies and actual microphone interaction were disabled for this runtime acceptance.",
+    "No model inference, platform login, QQ connection or outbound message was exercised.",
+    "Automatic process shutdown was verified on Windows only.",
+    "Use a short extraction path on Windows; deeply nested SQLite database paths can exceed native path limits."
+  ]
+}

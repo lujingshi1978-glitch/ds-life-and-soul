@@ -1,0 +1,14 @@
+{
+  "kind": "synthetic-walkthrough",
+  "title": "一轮跨来源体验",
+  "disclosure": "合成流程示例，不是真实聊天、模型输出或实际发送日志",
+  "scenario": "角色读到潮汐科普后，联想到朋友曾提到的海边摄影话题",
+  "events": [
+    { "step": 1, "label": "读到内容", "description": "网页中一篇潮汐科普", "requires": "真实正文与来源引用" },
+    { "step": 2, "label": "留下经历", "description": "保留来源与已读范围", "requires": "有效档案、归属和版本" },
+    { "step": 3, "label": "形成理解", "description": "对潮汐现象产生兴趣", "requires": "有依据的模型选择，结果不保证出现" },
+    { "step": 4, "label": "想起他人", "description": "联想到海边摄影话题", "requires": "当前角色中真实存在的人物依据" },
+    { "step": 5, "label": "选择行动", "description": "条件允许时主动分享", "requires": "通道就绪、权限有效、活动开关及明确回执" }
+  ],
+  "limits": ["任何一步都可能停止", "未知回执不能写成成功", "不包含真实人物或个人聊天"]
+}

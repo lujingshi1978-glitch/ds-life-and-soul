@@ -1,0 +1,1068 @@
+{
+  "schemaVersion": 1,
+  "scope": "Only the release source allow-list and explicitly generated documentation are redistributed. Installed dependencies, runtime executables, models and caches are excluded.",
+  "copied": [
+    {
+      "name": "Feiyu core",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "LICENSE",
+          "sha256": "47b5938f03f72cb62ad2f49c61fc91111f462db2aa2a9b05535218c70d46b3a0"
+        },
+        {
+          "path": "packages/feiyu/LICENSE",
+          "sha256": "47b5938f03f72cb62ad2f49c61fc91111f462db2aa2a9b05535218c70d46b3a0"
+        }
+      ]
+    },
+    {
+      "name": "feiyu-life",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/feiyu-life/LICENSE",
+          "sha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef"
+        }
+      ]
+    },
+    {
+      "name": "qq-contact-memory",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/qq-contact-memory/LICENSE",
+          "sha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef"
+        }
+      ]
+    },
+    {
+      "name": "qq-intimacy-judge",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/qq-intimacy-judge/LICENSE",
+          "sha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef"
+        }
+      ]
+    },
+    {
+      "name": "qq-agent-presets",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/qq-agent-presets/LICENSE",
+          "sha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef"
+        }
+      ]
+    },
+    {
+      "name": "qq-qzone-review",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/qq-qzone-review/LICENSE",
+          "sha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef"
+        }
+      ]
+    },
+    {
+      "name": "qq-mode-console",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/qq-mode-console/LICENSE",
+          "sha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef"
+        }
+      ]
+    },
+    {
+      "name": "dsh-bili-scroll",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/dsh-bili-scroll/LICENSE",
+          "sha256": "aed8e2ac4aa063158cb080c83304dc2dca7486031f423717c6efce62041ce51f"
+        }
+      ]
+    },
+    {
+      "name": "dsh-read-animation",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/dsh-read-animation/LICENSE",
+          "sha256": "b26e3f7a138ed7843e9cf33a554a8042bcce35dbeeb1d20ac16c7fc2bac35bf3"
+        }
+      ]
+    },
+    {
+      "name": "bilibili-mcp",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/plugins/dsh-bili-scroll/vendor/bilibili-mcp/LICENSE",
+          "sha256": "613dc22ea40922528e661ff5112c207a87c5fd323b8f24202b06e69317cc888e"
+        }
+      ],
+      "attribution": "Copyright (c) 2026 AGI_Ananas"
+    },
+    {
+      "name": "czx-bilibili keyframe adaptation",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/vendor/czx-bilibili/LICENSE",
+          "sha256": "af78ebce8eb7f6202fd3b646b3f742d9991e9cd34c12cf17c0fd0c46539f1419"
+        }
+      ]
+    },
+    {
+      "name": "Tencent openclaw-weixin protocol adaptation",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "packages/feiyu/vendor/tencent-weixin/LICENSE",
+          "sha256": "e03f0b07c51d8e8f1c9e25bca15a67d9c3157ae9a14d77dda98d426bfb165adb"
+        }
+      ],
+      "sourceRecord": "packages/feiyu/vendor/tencent-weixin/SOURCE.md",
+      "revision": "874637a0dbc24050f72d1385add4fc6170a2d726"
+    },
+    {
+      "name": "Feiyu hotkey client derived from dsh-pet-indesktop",
+      "license": "MIT",
+      "distribution": "source",
+      "licenseFiles": [
+        {
+          "path": "clients/feiyu-hotkey/LICENSE",
+          "sha256": "1113b91baa42bdc38b0aff677ba993e277e59e27c45c14f724016bd5fd6e3607"
+        }
+      ],
+      "attribution": "Copyright (c) 2026 Merzlin",
+      "modifiedSources": [
+        "clients/feiyu-hotkey/feiyu_hotkey/hotkey_spec.py",
+        "clients/feiyu-hotkey/feiyu_hotkey/voice.py"
+      ],
+      "notice": "clients/feiyu-hotkey/THIRD_PARTY_NOTICES.md",
+      "archivedUpstreamNotice": "clients/feiyu-hotkey/licenses/dsh-pet-THIRD_PARTY_NOTICES.md",
+      "archivedNoticeDoesNotImplyAssetDistribution": true
+    },
+    {
+      "name": "ws notice (installed dependency; no ws source copied)",
+      "license": "MIT",
+      "distribution": "notice-only",
+      "licenseFiles": [
+        {
+          "path": "licenses/ws-LICENSE",
+          "sha256": "2b29dcfe0d6471f7e8c92c5fb38c9f93edee10330937055440192f1832b1ecef"
+        }
+      ]
+    },
+    {
+      "name": "Feiyu optional voice-runtime deployment helper",
+      "license": "MIT",
+      "distribution": "source; no downloaded model or third-party runtime is included",
+      "licenseFiles": [
+        {
+          "path": "portable/voice-runtime/LICENSE",
+          "sha256": "8a1bf35a46adba79049ab26d69b6b0f1e02c358e0a043f4aa7be533a2d82beef"
+        }
+      ],
+      "notice": "portable/voice-runtime/NOTICE.md"
+    }
+  ],
+  "npm": {
+    "lockFile": "packages/feiyu/package-lock.json",
+    "lockSha256": "44f77027e9313fbcbcef0d3555b1fb6582ffaca30d51b57323cdf9b5bc77f55d",
+    "packageCount": 154,
+    "licenseCounts": {
+      "MIT": 143,
+      "Python-2.0": 1,
+      "BSD-3-Clause": 2,
+      "ISC": 7,
+      "BSD-2-Clause": 1
+    },
+    "distribution": "metadata-only; npm dependencies are installed by the user",
+    "packages": [
+      {
+        "location": "node_modules/@deepseek-ai/cordis",
+        "version": "4.0.5",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/cordis-plugin-include",
+        "version": "1.0.10",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/cordis-plugin-loader",
+        "version": "1.0.6",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/cordis-plugin-loader/node_modules/@deepseek-ai/schemastery",
+        "version": "3.18.5",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/cosmokit",
+        "version": "1.8.6",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-agent",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-agent-default-model",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-agent-presets",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-api-gateway",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-api-remotes",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-atomic-write",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-attachment",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-brand",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-client-connection",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-code-runtime",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-commands",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-compaction",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-cordis-host-runner",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-credentials",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-file-reference",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-goal",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-home-paths",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-host-apiproxy",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-host-directory-picker",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-host-plugin-inventory",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-host-webserver",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-invariants",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-jobs",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-llm",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-message-feedback",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-native-command",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-output-retention",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-scope",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-session",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-session-persistence",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-session-projection",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-session-projection-cache",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-session-query",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-session-reference",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-session-title",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-settings",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-skill",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-storage",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-storage-domain",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-subagent",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-system-prompt",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-timeout",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-tools",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-typert-protocol",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-typert-registry",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-user-approval",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-user-questions",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/dsh-workspace",
+        "version": "0.1.1-rc.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@deepseek-ai/schemastery",
+        "version": "3.18.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@hono/node-server",
+        "version": "2.1.5",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@modelcontextprotocol/sdk",
+        "version": "1.30.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/@standard-schema/spec",
+        "version": "1.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/accepts",
+        "version": "2.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/ajv",
+        "version": "8.20.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/ajv-formats",
+        "version": "3.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/argparse",
+        "version": "2.0.1",
+        "license": "Python-2.0"
+      },
+      {
+        "location": "node_modules/body-parser",
+        "version": "2.4.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/body-parser/node_modules/content-type",
+        "version": "2.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/bytes",
+        "version": "3.1.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/call-bind-apply-helpers",
+        "version": "1.0.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/call-bound",
+        "version": "1.0.4",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/content-disposition",
+        "version": "2.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/content-type",
+        "version": "1.0.5",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/cookie",
+        "version": "0.7.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/cookie-signature",
+        "version": "1.2.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/cors",
+        "version": "2.8.6",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/cross-spawn",
+        "version": "7.0.6",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/debug",
+        "version": "4.4.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/depd",
+        "version": "2.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/dunder-proto",
+        "version": "1.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/ee-first",
+        "version": "1.1.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/encodeurl",
+        "version": "2.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/es-define-property",
+        "version": "1.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/es-errors",
+        "version": "1.3.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/es-object-atoms",
+        "version": "1.1.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/escape-html",
+        "version": "1.0.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/etag",
+        "version": "1.8.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/eventsource",
+        "version": "3.0.7",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/eventsource-parser",
+        "version": "3.1.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/express",
+        "version": "5.3.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/express-rate-limit",
+        "version": "8.7.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/express/node_modules/content-type",
+        "version": "2.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/fast-deep-equal",
+        "version": "3.1.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/fast-uri",
+        "version": "3.1.9",
+        "license": "BSD-3-Clause"
+      },
+      {
+        "location": "node_modules/fflate",
+        "version": "0.8.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/finalhandler",
+        "version": "2.1.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/forwarded",
+        "version": "0.2.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/fresh",
+        "version": "2.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/function-bind",
+        "version": "1.1.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/get-intrinsic",
+        "version": "1.3.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/get-proto",
+        "version": "1.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/gopd",
+        "version": "1.2.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/has-symbols",
+        "version": "1.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/hasown",
+        "version": "2.0.4",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/hono",
+        "version": "4.13.14",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/http-errors",
+        "version": "2.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/iconv-lite",
+        "version": "0.7.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/inherits",
+        "version": "2.0.4",
+        "license": "ISC"
+      },
+      {
+        "location": "node_modules/ip-address",
+        "version": "10.7.5",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/ipaddr.js",
+        "version": "1.9.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/is-promise",
+        "version": "4.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/isexe",
+        "version": "2.0.0",
+        "license": "ISC"
+      },
+      {
+        "location": "node_modules/jose",
+        "version": "6.2.13",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/js-yaml",
+        "version": "4.3.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/json-schema-traverse",
+        "version": "1.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/json-schema-typed",
+        "version": "8.0.2",
+        "license": "BSD-2-Clause"
+      },
+      {
+        "location": "node_modules/math-intrinsics",
+        "version": "1.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/media-typer",
+        "version": "1.1.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/merge-descriptors",
+        "version": "2.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/mime-db",
+        "version": "1.54.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/mime-types",
+        "version": "3.0.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/ms",
+        "version": "2.1.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/negotiator",
+        "version": "1.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/negotiator/node_modules/content-type",
+        "version": "2.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/object-assign",
+        "version": "4.1.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/object-inspect",
+        "version": "1.13.4",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/on-finished",
+        "version": "2.4.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/once",
+        "version": "1.4.0",
+        "license": "ISC"
+      },
+      {
+        "location": "node_modules/parseurl",
+        "version": "1.3.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/path-key",
+        "version": "3.1.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/path-to-regexp",
+        "version": "8.4.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/pkce-challenge",
+        "version": "5.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/proxy-addr",
+        "version": "2.0.8",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/qs",
+        "version": "6.17.0",
+        "license": "BSD-3-Clause"
+      },
+      {
+        "location": "node_modules/range-parser",
+        "version": "1.3.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/raw-body",
+        "version": "3.0.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/require-from-string",
+        "version": "2.0.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/router",
+        "version": "2.2.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/safer-buffer",
+        "version": "2.1.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/send",
+        "version": "1.2.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/serve-static",
+        "version": "2.2.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/setprototypeof",
+        "version": "1.2.0",
+        "license": "ISC"
+      },
+      {
+        "location": "node_modules/shebang-command",
+        "version": "2.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/shebang-regex",
+        "version": "3.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/side-channel",
+        "version": "1.1.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/side-channel-list",
+        "version": "1.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/side-channel-map",
+        "version": "1.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/side-channel-weakmap",
+        "version": "1.0.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/statuses",
+        "version": "2.0.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/toidentifier",
+        "version": "1.0.1",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/type-is",
+        "version": "2.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/type-is/node_modules/content-type",
+        "version": "2.1.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/unpipe",
+        "version": "1.0.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/vary",
+        "version": "1.1.2",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/which",
+        "version": "2.0.2",
+        "license": "ISC"
+      },
+      {
+        "location": "node_modules/wrappy",
+        "version": "1.0.2",
+        "license": "ISC"
+      },
+      {
+        "location": "node_modules/ws",
+        "version": "8.22.0",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/zod",
+        "version": "4.4.3",
+        "license": "MIT"
+      },
+      {
+        "location": "node_modules/zod-to-json-schema",
+        "version": "3.25.2",
+        "license": "ISC"
+      }
+    ]
+  },
+  "separatelyInstalled": [
+    {
+      "name": "PySide6 / Qt / Shiboken",
+      "license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only OR commercial",
+      "bundled": false,
+      "notice": "clients/feiyu-hotkey/THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "name": "sounddevice / PortAudio / cffi",
+      "license": "MIT (refer to installed wheel notices)",
+      "bundled": false
+    },
+    {
+      "name": "NumPy",
+      "license": "BSD-3-Clause (refer to installed wheel bundled-library notices)",
+      "bundled": false
+    },
+    {
+      "name": "sharp",
+      "license": "Apache-2.0",
+      "bundled": false,
+      "optional": true,
+      "notice": "packages/feiyu/plugins/dsh-read-animation/THIRD_PARTY.md"
+    },
+    {
+      "name": "libvips and sharp platform binaries",
+      "license": "LGPL-3.0 and respective bundled-library notices",
+      "bundled": false,
+      "optional": true
+    },
+    {
+      "name": "faster-whisper",
+      "license": "MIT",
+      "bundled": false,
+      "optional": true,
+      "notice": "portable/voice-runtime/NOTICE.md"
+    },
+    {
+      "name": "PyAV and FFmpeg libraries in its wheels",
+      "license": "As provided by the explicitly installed wheel and its bundled libraries",
+      "bundled": false,
+      "optional": true
+    },
+    {
+      "name": "PyMuPDF",
+      "license": "AGPL or commercial",
+      "bundled": false,
+      "optional": true,
+      "explicitSelectionRequired": true,
+      "notice": "portable/voice-runtime/NOTICE.md"
+    }
+  ],
+  "excluded": [
+    {
+      "name": "@snowluma/sdk",
+      "reason": "Replaced by the original loopback-only OneBot/ws adapter at packages/feiyu/src/onebot-client.js"
+    },
+    {
+      "name": "SnowLuma application",
+      "reason": "External user installation; no sources, executable, private credentials or automatic deployment redistributed"
+    },
+    {
+      "name": "DS-TTShost / ds-tts-host / ds-tts",
+      "reason": "Not redistributed: the reviewed upstream lacked its complete LICENSE notice"
+    },
+    {
+      "name": "Original pet character animations, sounds, fonts and Android assets",
+      "reason": "No assets redistributed; archived upstream notice is attribution history only"
+    },
+    {
+      "name": "Provider credentials, user memories, account identifiers, conversation data, database files, runtime distributions and model weights",
+      "reason": "Excluded from release enumeration"
+    }
+  ],
+  "runtimeNpm": {
+    "lockFile": "templates/dsh-runtime/package-lock.json",
+    "lockSha256": "5c4ba2e44dec5b8a693c72046e6d3110a352d8ca66abf3606c006f6d1470f6cb",
+    "packageCount": 610,
+    "licenseCounts": {
+      "Apache-2.0": 76,
+      "MIT": 482,
+      "MPL-2.0": 6,
+      "BSD-3-Clause": 18,
+      "LGPL-3.0-or-later": 10,
+      "Apache-2.0 AND LGPL-3.0-or-later AND MIT": 1,
+      "Apache-2.0 AND LGPL-3.0-or-later": 3,
+      "ISC": 8,
+      "BSD-2-Clause": 2,
+      "Python-2.0": 1,
+      "Unlicense": 1,
+      "0BSD": 1,
+      "(MIT OR CC0-1.0)": 1
+    },
+    "distribution": "metadata-only; no installed runtime, dependency source, platform binary or model weights included",
+    "dependencyRecord": "licenses/dsh-runtime-dependencies.json"
+  }
+}

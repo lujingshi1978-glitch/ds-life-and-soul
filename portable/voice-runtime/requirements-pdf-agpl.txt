@@ -1,0 +1,2 @@
+# Explicit separate opt-in: not included in the default voice runtime.
+PyMuPDF>=1.26,<3

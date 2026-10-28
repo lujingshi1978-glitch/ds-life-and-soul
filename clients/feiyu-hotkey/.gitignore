@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+.venv/
+config.json
+companion-gateway.json

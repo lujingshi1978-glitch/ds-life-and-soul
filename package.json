@@ -1,0 +1,20 @@
+{
+  "name": "feiyu-life",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "肥鱼：跨来源的持续生活智能体，DSH插件、快捷语音与透明桌面聊天窗。",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node scripts/deploy.mjs launch",
+    "setup": "node scripts/deploy.mjs setup",
+    "doctor": "node scripts/deploy.mjs doctor",
+    "stop": "node scripts/deploy.mjs stop",
+    "test": "node --test tests/*.mjs",
+    "privacy": "node scripts/check-public-package.mjs",
+    "test:core": "npm --prefix packages/feiyu test"
+  }
+}

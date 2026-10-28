@@ -1,0 +1,19 @@
+{
+  "stage": "release-candidate",
+  "pluginStatus": "六个默认 DSH 插件，使用独立 profile feiyu",
+  "clientTitle": "快捷键语音与弹幕小窗",
+  "clientBody": "Ctrl + Alt + Space 录音切换\n小窗支持文字、取消与托盘\n两种入口接入同一肥鱼",
+  "packageNote": "首次配置后使用统一启动入口",
+  "install": [
+    "解压发布包，运行 start.cmd 或 启动肥鱼.cmd",
+    "按首次向导配置模型或已有网关",
+    "安装依赖，建立独立 DSH profile feiyu",
+    "核对语音和小窗，按需登录各平台账号"
+  ],
+  "validation": "隔离核心启动、离线识别模型已实测。真实设备与账号链待使用者验证。",
+  "scope": {
+    "plugin": "本轮从官方 npm 安装核心与 DSH 0.2.0-rc.2，在新 DSH_HOME、新 profile 及含中文空格的隔离目录真实启动。原生插件、bridge 就绪、空记忆、记忆和 companion 鉴权，以及完整停机通过。该核心启动核验关闭语音、浏览器、视频，未调用模型、QQ 或外发消息。",
+    "voice": "独立新 Python 3.11 虚拟环境真实安装通过。依赖经官方 SHA 校验的公开 wheel 缓存续装，首次从零 PyPI 安装受 CDN 限速而未完成，不能称全部从零网络下载。固定官方来源 Whisper-small 四个模型文件首次下载及哈希校验通过。真实模型处理合成一秒静音，返回空 text 与 segments，缺模型明确失败。PySide6、numpy、sounddevice 真实导入通过。真实麦克风录音、播放和全局热键未测试，没有生产 API 或云模型调用。",
+    "installation": "核心与官方 DSH 依赖本轮从官方 npm 安装，精确批准必要构建脚本。隔离核心启动、鉴权及停机已实测，离线语音运行时和模型另行真实安装验证。平台账号登录、真实 QQ 送达及云模型回复仍待使用者在自己的环境验证。"
+  }
+}

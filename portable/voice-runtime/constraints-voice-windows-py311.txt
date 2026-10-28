@@ -1,0 +1,48 @@
+# Verified Windows / Python 3.11.15 voice runtime, 2026-10-28.
+# Runtime packages only; pip/setuptools bootstrap tools are intentionally excluded.
+# Source: official PyPI SHA256-verified public wheel reuse + official small-wheel download.
+# Actual local model load and synthetic-silence ASR passed; no real microphone/playback.
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.5
+aiosignal==1.4.0
+anyio==4.15.1
+attrs==26.1.0
+av==18.1.0
+certifi==2026.10.23
+cffi==2.1.1
+click==8.5.0
+colorama==0.4.6
+ctranslate2==4.8.3
+edge-tts==7.3.1
+faster-whisper==1.2.1
+filelock==4.2.4
+flatbuffers==25.12.19
+frozenlist==1.8.0
+fsspec==2026.9.0
+h11==0.16.0
+hf-xet==1.7.0
+httpcore2==2.16.0
+httpx2==2.16.0
+huggingface_hub==2.3.0
+idna==3.20
+multidict==7.2.1
+numpy==2.4.6
+onnxruntime==1.31.0
+packaging==26.3
+propcache==0.5.4
+protobuf==7.36.2
+pycparser==3.12
+PySide6==6.12.0
+PySide6_Addons==6.12.0
+PySide6_Essentials==6.12.0
+PySide6_Pdf==6.12.0.140
+PySide6_WebEngine==6.12.0.140
+PyYAML==6.0.3
+shiboken6==6.12.0
+sounddevice==0.5.6
+tabulate==0.10.0
+tokenizers==0.23.3
+tqdm==4.70.1
+truststore==0.10.5
+typing_extensions==4.16.0
+yarl==1.25.1

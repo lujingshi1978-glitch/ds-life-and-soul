@@ -1,0 +1,4 @@
+import fs from 'node:fs';import path from 'node:path';import {spawn} from 'node:child_process';import {fileURLToPath} from 'node:url';
+const root=fileURLToPath(new URL('../',import.meta.url)),repo=path.resolve(root,'../..'),python=process.env.FEIYU_MEDIA_PYTHON||path.join(repo,'work/integration-runtime/media/.venv',process.platform==='win32'?'Scripts/python.exe':'bin/python');
+if(!fs.existsSync(python))throw Error('请先安装快捷语音运行时');
+const child=spawn(python,['-m','feiyu_hotkey','--config',path.join(repo,'.local/hotkey-config.json')],{cwd:path.join(repo,'clients/feiyu-hotkey'),env:{...process.env,PYTHONUTF8:'1'},windowsHide:true,detached:true,stdio:'ignore'});await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});fs.writeFileSync(path.join(root,'state/desktop-pet.lock'),String(child.pid));child.unref();

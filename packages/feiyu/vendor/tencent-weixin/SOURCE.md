@@ -1,0 +1,1 @@
+Protocol/header/login/text-message adaptation from https://github.com/Tencent/openclaw-weixin at commit 874637a0dbc24050f72d1385add4fc6170a2d726 (MIT), version 2.4.10. Original source is kept in work/integration-upstreams/tencent-openclaw-weixin. No OpenClaw runtime is installed; Feiyu uses the existing DSH model and shared attention lane.
