@@ -4,7 +4,7 @@
 
 主要验证平台为 Windows 10/11 x64。需要 Node.js 24 LTS 与 npm。快捷语音使用 Python 3.11，客户端依赖 PySide6、sounddevice 和 NumPy。启动器会从官方 npm 安装独立的 DSH 0.2.0-rc.2，无需预先安装另一份 DSH。
 
-Windows 默认通过 `py -3.11` 创建语音环境，请安装 Python 3.11 及 Python Launcher。也可以用环境变量 `FEIYU_PYTHON` 指定 Python 3.11 解释器的绝对路径；其他 Python 版本尚未验收。
+Windows优先检查 `py -3.11`；若无法选择，会从Python Launcher列表查找已登记的解释器（含uv/Astral登记项），再检查PATH候选。每个候选都核对实际版本，只接受Python 3.11，不会因为默认Python是3.14就直接用它。也可以用环境变量 `FEIYU_PYTHON` 显式指定Python 3.11解释器的绝对路径；显式选择无效时会报错，不静默换用另一版本。已有语音虚拟环境继续复用；未找到合适解释器时会在安装依赖前提示，不自动下载Python。
 
 将源码包解压到短路径，例如 `D:\Feiyu`，不要直接在压缩包中运行。Windows SQLite 对很深的目录可能报无法打开数据库。启动器与客户端支持中文和空格路径；仍建议避免多层嵌套。
 

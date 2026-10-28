@@ -24,6 +24,7 @@ async function fixture(t) {
   }
   fs.copyFileSync(path.join(repo, 'scripts/owned-processes.mjs'), path.join(dir, 'scripts/owned-processes.mjs'));
   fs.copyFileSync(path.join(repo, 'scripts/qq-setup.mjs'), path.join(dir, 'scripts/qq-setup.mjs'));
+  fs.copyFileSync(path.join(repo, 'scripts/python-runtime.mjs'), path.join(dir, 'scripts/python-runtime.mjs'));
   const core = path.join(dir, 'packages/feiyu');
   const sourceCore = path.join(repo, 'packages/feiyu');
   if (!fs.existsSync(path.join(sourceCore, 'node_modules/js-yaml'))) {
@@ -90,6 +91,19 @@ test('seeding in a Chinese path is idempotent and preserves local edits', async 
   const before = [read(file), read(customRole)];
   assert.equal(f.api.seedConfig(f.config).created, false);
   assert.deepEqual([read(file), read(customRole)], before);
+});
+
+test('invalid explicit Python fails voice preflight before install or config writes', async t => {
+  const f = await fixture(t); if (!f) return;
+  const previous = process.env.FEIYU_PYTHON;
+  process.env.FEIYU_PYTHON = path.join(f.dir, 'missing-python.exe');
+  try {
+    await assert.rejects(f.api.install({...f.config,voice:true}), /FEIYU_PYTHON/);
+    assert.equal(fs.existsSync(path.join(f.core,'config.json')),false);
+    assert.equal(fs.existsSync(path.join(f.dir,'.local/installation.json')),false);
+  } finally {
+    if (previous === undefined) delete process.env.FEIYU_PYTHON; else process.env.FEIYU_PYTHON = previous;
+  }
 });
 
 test('isolated install is idempotent and restores original profile bytes', async t => {

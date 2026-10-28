@@ -10,6 +10,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { stopOwned, inspectProcess } from "./owned-processes.mjs";
 import { createInterface } from "node:readline/promises";
 import { saveQqConfig, probeQqGateway, qqErrorMessage, createQqPrompts } from "./qq-setup.mjs";
+import { resolvePython311 } from "./python-runtime.mjs";
 export const REPO = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "..",
@@ -182,11 +183,6 @@ async function npm(args, cwd) {
     { cwd },
   );
 }
-function pythonLaunch() {
-  if (process.env.FEIYU_PYTHON) return [process.env.FEIYU_PYTHON];
-  if (process.platform === "win32") return ["py", "-3.11"];
-  return ["python3"];
-}
 export function pythonPath() {
   return path.join(
     REPO,
@@ -292,6 +288,9 @@ export async function install(
   { skipDependencies = false, installRun = run } = {},
 ) {
   const c = normalize(raw);
+  const voicePython = c.voice && !skipDependencies
+    ? resolvePython311({env:exists(pythonPath()) ? {...process.env, FEIYU_PYTHON:pythonPath()} : process.env})
+    : null;
   c.dshHome = path.resolve(c.dshHome || path.join(local, "dsh-home"));
   if (
     c.dshInstall &&
@@ -363,7 +362,7 @@ export async function install(
     const voice = await module.installVoiceRuntime({
       repoRoot: REPO,
       voice: true,
-      pythonCommand: pythonLaunch(),
+      pythonCommand: voicePython,
       run: installRun,
     });
     if (!voice.ready)
