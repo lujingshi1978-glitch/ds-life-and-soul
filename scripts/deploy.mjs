@@ -490,6 +490,7 @@ export function ownDshLaunchToken(log, port) {
 }
 export async function start({ open = true, client = true } = {}) {
   if (!exists(setupFile)) throw Error("请先运行 setup");
+  if (!coreDependenciesReady()) throw Error("核心依赖缺失或版本不符。请先运行 stop.cmd，再双击 scripts/修复核心依赖.cmd，完成后重新启动。");
   const c = normalize(json(setupFile)),
     env = buildEnvironment(c),
     dshEntry = path.join(c.dshInstall, "lib/bin.js");
@@ -607,13 +608,28 @@ export function stop() {
   write(registryFile, result.remaining);
   return result;
 }
+export function coreDependenciesReady() {
+  try {
+    const dependencies = json(path.join(CORE,"package.json")).dependencies;
+    return !!dependencies && Object.entries(dependencies).every(([name,version]) => json(path.join(CORE,"node_modules",name,"package.json")).version === version);
+  } catch { return false; }
+}
+export async function repairCore({install = () => npm(["ci","--ignore-scripts"],CORE)} = {}) {
+  let c;try { c = exists(path.join(CORE,"config.json")) ? json(path.join(CORE,"config.json")) : DEFAULTS; }
+  catch { throw Error("本机配置无法解析，请先核对JSON格式；没有安装依赖或改写配置。"); }
+  const ports = [c.consolePort||DEFAULTS.consolePort,c.companion?.port||c.companionPort||DEFAULTS.companionPort,c.dsh?.baseUrl?Number(new URL(c.dsh.baseUrl).port||80):c.dshPort||DEFAULTS.dshPort];
+  for (const port of ports) if (await portOpen(Number(port))) throw Error("依赖修复前请先用当前目录 stop.cmd 停止肥鱼和DSH；不停止或接管其他进程。");
+  await install();
+  if (!coreDependenciesReady()) throw Error("核心依赖检查仍未通过，请检查本机npm安装日志。");
+  return {ok:true,coreDependencies:true,restartRequired:true};
+}
 export async function doctor() {
   const c = exists(setupFile) ? json(setupFile) : null;
   return {
     ok: !!c,
     node: process.version,
     configured: !!c,
-    coreDependencies: exists(path.join(CORE, "node_modules/js-yaml")),
+    coreDependencies: coreDependenciesReady(),
     services: c
       ? {
           dsh: await portOpen(c.dshPort),
@@ -695,6 +711,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (action === "doctor") return doctor();
   if (action === "qq") return configureQq();
   if (action === "qq-check") return checkQq();
+  if (action === "repair-core") return repairCore();
   if (action === "stop") return stop();
   if (action === "uninstall") {
     if (!exists(setupFile)) return { ok: true, removed: false };
@@ -710,7 +727,7 @@ export async function main(argv = process.argv.slice(2)) {
     return result;
   }
   if (!["launch", "start"].includes(action))
-    throw Error("使用 launch|setup|start|stop|doctor|plan|qq|qq-check|uninstall");
+    throw Error("使用 launch|setup|start|stop|doctor|plan|qq|qq-check|repair-core|uninstall");
   if (!exists(setupFile)) {
     const c = supplied || await wizard(); await install(c);
     if (c.qqWizard) await configureQq();

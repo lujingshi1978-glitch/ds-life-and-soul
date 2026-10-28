@@ -1,6 +1,6 @@
 {
   "name": "feiyu-life-core",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node src/bridge.js",
-    "test": "node --test scripts/test-life-presenter.mjs scripts/test-life-memory-view.mjs scripts/test-life-memory-route.mjs scripts/test-onebot-client.mjs scripts/test-relationship-pacing.mjs scripts/test-expression-memory.mjs scripts/test-disposition-memory.mjs scripts/test-contextual-interest.mjs scripts/test-creator-boundary.mjs scripts/test-conversation-expression.mjs scripts/test-browser-creation-boundary.mjs scripts/test-boundary-adversarial.mjs scripts/test-runtime-tuning.mjs scripts/test-memory-runtime-tuning.mjs scripts/test-runtime-life-budget.mjs scripts/test-runtime-cost-boundary.mjs scripts/test-runtime-work-admission.mjs scripts/test-runtime-tuning-ui.mjs scripts/test-chat-window-budget.mjs scripts/test-role-card.mjs scripts/test-psyche-tool-protocol.mjs scripts/test-token-economy.mjs scripts/test-life-console.mjs",
+    "test": "node --test scripts/test-life-presenter.mjs scripts/test-life-memory-view.mjs scripts/test-life-memory-route.mjs scripts/test-onebot-client.mjs scripts/test-relationship-pacing.mjs scripts/test-expression-memory.mjs scripts/test-disposition-memory.mjs scripts/test-contextual-interest.mjs scripts/test-creator-boundary.mjs scripts/test-conversation-expression.mjs scripts/test-browser-creation-boundary.mjs scripts/test-boundary-adversarial.mjs scripts/test-runtime-tuning.mjs scripts/test-memory-runtime-tuning.mjs scripts/test-runtime-life-budget.mjs scripts/test-runtime-cost-boundary.mjs scripts/test-runtime-work-admission.mjs scripts/test-runtime-tuning-ui.mjs scripts/test-chat-window-budget.mjs scripts/test-role-card.mjs scripts/test-psyche-tool-protocol.mjs scripts/test-token-economy.mjs scripts/test-life-console.mjs scripts/test-wechat-login.mjs",
     "test:ui": "node scripts/test-life-console.mjs",
     "test:runtime": "node --test scripts/test-runtime-tuning.mjs scripts/test-memory-runtime-tuning.mjs scripts/test-runtime-life-budget.mjs scripts/test-runtime-cost-boundary.mjs scripts/test-runtime-work-admission.mjs scripts/test-runtime-tuning-ui.mjs scripts/test-chat-window-budget.mjs scripts/test-role-card.mjs scripts/test-psyche-tool-protocol.mjs scripts/test-token-economy.mjs scripts/test-life-console.mjs"
   },
@@ -19,6 +19,7 @@
     "@deepseek-ai/schemastery": "3.18.1",
     "@modelcontextprotocol/sdk": "1.30.0",
     "js-yaml": "4.3.2",
+    "qrcode": "1.5.4",
     "ws": "8.22.0",
     "zod": "4.4.3"
   }

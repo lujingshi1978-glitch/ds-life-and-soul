@@ -1,6 +1,6 @@
 {
   "name": "feiyu-life",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -17,6 +17,7 @@
     "privacy": "node scripts/check-public-package.mjs",
     "test:core": "npm --prefix packages/feiyu test",
     "qq": "node scripts/deploy.mjs qq",
-    "qq:check": "node scripts/deploy.mjs qq-check"
+    "qq:check": "node scripts/deploy.mjs qq-check",
+    "repair:core": "node scripts/deploy.mjs repair-core"
   }
 }

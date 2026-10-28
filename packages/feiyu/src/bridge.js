@@ -3223,7 +3223,7 @@ async function main() {
       }
       const SECURITY_HEADERS = {
         'X-Frame-Options': 'DENY',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:",
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer'
@@ -9365,7 +9365,6 @@ async function main() {
       if(epoch!==sessionEpoch||activationEpoch!==roleWrites.activation||activeProfile.id!==wechatProfileId||mindSystem!==wechatMind||roleTransition)throw Object.assign(Error('STALE_ROLE_EPOCH'),{code:'STALE_ROLE_EPOCH'});
       if(!dshReady||socialV2.paused||resting())throw Object.assign(Error('WECHAT_REQUEST_CANCELLED'),{code:'WECHAT_REQUEST_CANCELLED'});
     },{binding:{profileId:wechatProfileId,activationEpoch,sessionEpoch:epoch}});},
-    qrImage:async value=>{const {default:QR}=await import(new URL('../../../work/integration-runtime/wechat/node_modules/qrcode/lib/index.js',import.meta.url).href);return QR.toDataURL(value,{width:280,margin:2});},
     respond:async({id,requestId,scope,text:incoming,history,at,recovered,activationEpoch,signal,guard})=>{
       guard();const cancelQueued=()=>dialogueAttention.cancel(scope);let slot;
       signal?.addEventListener('abort',cancelQueued,{once:true});

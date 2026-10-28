@@ -27,6 +27,7 @@ async function fixture(t) {
   fs.copyFileSync(path.join(repo, 'scripts/python-runtime.mjs'), path.join(dir, 'scripts/python-runtime.mjs'));
   const core = path.join(dir, 'packages/feiyu');
   const sourceCore = path.join(repo, 'packages/feiyu');
+  fs.copyFileSync(path.join(sourceCore, 'package.json'), path.join(core, 'package.json'));
   if (!fs.existsSync(path.join(sourceCore, 'node_modules/js-yaml'))) {
     fs.rmSync(dir, { recursive: true, force: true });
     t.skip('Run npm ci in packages/feiyu first');
@@ -104,6 +105,22 @@ test('invalid explicit Python fails voice preflight before install or config wri
   } finally {
     if (previous === undefined) delete process.env.FEIYU_PYTHON; else process.env.FEIYU_PYTHON = previous;
   }
+});
+
+test('missing declared core dependency fails start with a repair message before any launch', async t => {
+  const f=await fixture(t);if(!f)return;await f.api.install(f.config,{skipDependencies:true});
+  const file=path.join(f.core,'package.json'),pkg=JSON.parse(read(file));pkg.dependencies['fixture-missing-dependency']='1.0.0';write(file,pkg);
+  assert.equal(f.api.coreDependenciesReady(),false);
+  await assert.rejects(f.api.start({open:false,client:false}),/修复核心依赖/);
+  assert.equal(fs.existsSync(path.join(f.dir,'.local/processes.json')),false);
+});
+
+test('dependency repair preserves config and refuses occupied service ports', async t => {
+  const f=await fixture(t);if(!f)return;const reserved=[];for(let i=0;i<3;i++){const s=net.createServer();await new Promise(r=>s.listen(0,'127.0.0.1',r));reserved.push(s);}const ports=reserved.map(s=>s.address().port);await Promise.all(reserved.map(s=>new Promise(r=>s.close(r))));
+  await f.api.install({...f.config,dshPort:ports[0],consolePort:ports[1],companionPort:ports[2]},{skipDependencies:true});const file=path.join(f.core,'config.json'),before=read(file);let calls=0;
+  assert.equal((await f.api.repairCore({install:async()=>{calls++;}})).ok,true);assert.equal(calls,1);assert.equal(read(file),before);
+  const server=net.createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));const config=JSON.parse(before);config.consolePort=server.address().port;write(file,config);const occupied=read(file);
+  await assert.rejects(f.api.repairCore({install:async()=>{calls++;}}),/先用当前目录/);assert.equal(calls,1);assert.equal(read(file),occupied);
 });
 
 test('isolated install is idempotent and restores original profile bytes', async t => {
