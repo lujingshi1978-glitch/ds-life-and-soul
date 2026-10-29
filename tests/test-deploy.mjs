@@ -28,6 +28,7 @@ async function fixture(t) {
   const core = path.join(dir, 'packages/feiyu');
   const sourceCore = path.join(repo, 'packages/feiyu');
   fs.copyFileSync(path.join(sourceCore, 'package.json'), path.join(core, 'package.json'));
+  fs.mkdirSync(path.join(core,'src'),{recursive:true});fs.copyFileSync(path.join(sourceCore,'src/strict-state-acl.mjs'),path.join(core,'src/strict-state-acl.mjs'));
   if (!fs.existsSync(path.join(sourceCore, 'node_modules/js-yaml'))) {
     fs.rmSync(dir, { recursive: true, force: true });
     t.skip('Run npm ci in packages/feiyu first');
@@ -94,6 +95,36 @@ test('seeding in a Chinese path is idempotent and preserves local edits', async 
   assert.deepEqual([read(file), read(customRole)], before);
 });
 
+test('existing role data without an installation receipt never falls back to the first-run wizard',async t=>{
+  const f=await fixture(t);if(!f)return;
+  f.api.seedConfig(f.config);const file=path.join(f.core,'config.json'),before=read(file);
+  await assert.rejects(f.api.main(['launch','--no-open','--no-client']),/缺少.*installation.json/);
+  assert.equal(read(file),before);assert.equal(fs.existsSync(path.join(f.dir,'.local/installation.json')),false);
+  assert.equal(fs.existsSync(path.join(f.dir,'.local/processes.json')),false);
+});
+
+test('installed launch twice reuses owned services without setup, dependency installation or resetting user data',async t=>{
+  const f=await fixture(t);if(!f)return;
+  const reserved=[];for(let n=0;n<3;n++){const server=net.createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));reserved.push(server);}
+  const ports=reserved.map(s=>s.address().port);await Promise.all(reserved.map(s=>new Promise(r=>s.close(r))));
+  const c={...f.config,dshPort:ports[0],consolePort:ports[1],companionPort:ports[2]};
+  await f.api.install(c,{skipDependencies:true});
+  fs.writeFileSync(path.join(c.dshInstall,'lib/bin.js'),`const http=require('node:http');const p=Number(process.argv[process.argv.indexOf('--port')+1]);http.createServer((q,s)=>{s.setHeader('content-type','application/json');s.end(JSON.stringify({ok:true,ready:true,pid:process.pid}));}).listen(p,'127.0.0.1');`);
+  fs.writeFileSync(path.join(f.core,'src/bridge.js'),`import http from 'node:http';import fs from 'node:fs';const c=JSON.parse(fs.readFileSync('config.json','utf8'));http.createServer((q,s)=>{s.setHeader('content-type','application/json');s.end(JSON.stringify({ok:true,ready:true,pid:process.pid}));}).listen(c.consolePort,'127.0.0.1');`);
+  const configFile=path.join(f.core,'config.json'),config=JSON.parse(read(configFile));config.workspaceTitle='operator-custom';write(configFile,config);
+  const role=path.join(f.core,'state/current-role.json');write(role,{role:'operator-custom-role',mode:'normal'});
+  const memory=path.join(f.core,'state/fixture-memory.bin');fs.writeFileSync(memory,'operator-memory-unchanged');
+  const files=[configFile,role,memory,path.join(f.core,'state/console-token'),path.join(f.dir,'.local/installation.json'),path.join(f.dir,'.local/hotkey-config.json')];
+  const before=files.map(read);
+  const oldNpm=process.env.FEIYU_NPM_CLI,trap=path.join(f.dir,'npm-must-not-run.cjs');
+  fs.writeFileSync(trap,`require('node:fs').writeFileSync(${JSON.stringify(path.join(f.dir,'unexpected-install'))},'unexpected');process.exit(1);`);process.env.FEIYU_NPM_CLI=trap;
+  try{
+    await f.api.main(['launch','--no-open','--no-client']);const first=JSON.parse(read(path.join(f.dir,'.local/processes.json')));
+    await f.api.main(['launch','--no-open','--no-client']);const second=JSON.parse(read(path.join(f.dir,'.local/processes.json')));
+    assert.deepEqual(second,first);assert.deepEqual(files.map(read),before);assert.equal(fs.existsSync(path.join(f.dir,'unexpected-install')),false);
+  }finally{f.api.stop();if(oldNpm===undefined)delete process.env.FEIYU_NPM_CLI;else process.env.FEIYU_NPM_CLI=oldNpm;}
+});
+
 test('invalid explicit Python fails voice preflight before install or config writes', async t => {
   const f = await fixture(t); if (!f) return;
   const previous = process.env.FEIYU_PYTHON;
@@ -152,6 +183,33 @@ test('conflicting existing unmanaged bundles are left byte-for-byte intact', asy
   await assert.rejects(f.api.install(f.config, { skipDependencies: true }), /conflict/);
   assert.deepEqual([read(locations.manifest), read(locations.patch)], bytes);
   assert.equal(fs.existsSync(locations.journal), false);
+});
+
+test('later optional plugin selection really adds bundles and uninstall still restores the original profile',async t=>{
+  const f=await fixture(t);if(!f)return;
+  await f.api.install(f.config,{skipDependencies:true});
+  const locations=f.lifecycle.profilePaths(f.config);
+  assert.equal(f.lifecycle.inspectProfile(f.config).bundles.includes('dsh-bili-scroll'),false);
+  const saved=JSON.parse(read(locations.journal)).before;
+  const client=path.join(f.dir,'.local/hotkey-config.json'),prefs=JSON.parse(read(client));prefs.caption_opacity=.4;prefs.caption_width=420;prefs.caption_x=120;prefs.hotkey='Ctrl+Alt+F9';write(client,prefs);
+  await f.api.install({...f.config,video:true},{skipDependencies:true});
+  assert.equal(f.lifecycle.inspectProfile(f.config).ok,true);
+  assert.ok(f.lifecycle.inspectProfile(f.config).bundles.includes('dsh-bili-scroll'));
+  assert.equal(JSON.parse(read(client)).caption_opacity,.4);
+  assert.equal(JSON.parse(read(client)).hotkey,'Ctrl+Alt+F9');
+  assert.deepEqual(JSON.parse(read(locations.journal)).before,saved);
+  assert.equal(f.lifecycle.uninstallProfile(f.config).removed,true);
+  for(const key of ['manifest','patch'])assert.equal(fs.existsSync(locations[key]),saved[key]!==null);
+});
+
+test('doctor reports configured but stopped deployment as degraded rather than healthy',async t=>{
+  const f=await fixture(t);if(!f)return;
+  const servers=[];for(let i=0;i<3;i++){const server=net.createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));servers.push(server);}
+  const ports=servers.map(s=>s.address().port);await Promise.all(servers.map(s=>new Promise(r=>s.close(r))));
+  await f.api.install({...f.config,dshPort:ports[0],consolePort:ports[1],companionPort:ports[2]},{skipDependencies:true});
+  const health=await f.api.doctor();assert.equal(health.configured,true);assert.equal(health.ok,false);assert.equal(health.degraded,true);
+  const listeners=[];for(const port of ports){const server=net.createServer();await new Promise(r=>server.listen(port,'127.0.0.1',r));listeners.push(server);}t.after(()=>Promise.all(listeners.map(s=>new Promise(r=>s.close(r)))));
+  const foreign=await f.api.doctor();assert.equal(Object.values(foreign.services).every(Boolean),true);assert.equal(foreign.ok,false);assert.equal(foreign.applicationReady,false);assert.deepEqual(foreign.ownership,{dsh:false,feiyu:false});
 });
 
 test('edited managed profiles are refused without overwriting operator edits', async t => {

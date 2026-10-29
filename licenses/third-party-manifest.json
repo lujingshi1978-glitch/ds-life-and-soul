@@ -186,7 +186,7 @@
   ],
   "npm": {
     "lockFile": "packages/feiyu/package-lock.json",
-    "lockSha256": "f90142cd0533c4f1624af5328ffdef5b5a42d6d8eac60240be0a8bd505c560c5",
+    "lockSha256": "d09c01ce0c8c63e2f56932614e0c472914657aed1717bae1964a287fdb1e7dbf",
     "packageCount": 183,
     "licenseCounts": {
       "MIT": 165,

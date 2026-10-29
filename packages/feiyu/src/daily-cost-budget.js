@@ -19,12 +19,12 @@ export class DailyCostBudget {
   if(this.reached&&(this.reached.day!==window.day||!enabled||limit>this.reached.limit&&(!hit)))this.reached=null;
   if(hit&&!this.reached)this.reached={day:window.day,at,limit};
   if(this.reached&&hit)this.reached.limit=limit;
-  const windingDown=enabled&&this.reached?.day===window.day;
-  return {policy:'daily-cost-soft-limit-v1',...window,enabled,limitCny:enabled?limit:0,knownCny:known,estimatedFromConfiguredPrices:true,unknownCost:known===null||usage?.unknownCost===true,unknownSamples:usage?.unknownSamples??null,unattributedHistory:usage?.unattributedHistory===true,error:error||usage?.error||null,mode:windingDown?'winding-down':enabled?'normal':'disabled',windingDown:!!windingDown,reachedAt:windingDown?this.reached.at:null,graceEndsAt:windingDown?this.reached.at+grace:null,nextResetAt:window.to,foregroundRepliesAllowed:true,abortInflight:false};
+  const budgetUnknown=enabled&&(known===null||usage?.unknownCost===true||!!error||!!usage?.error),windingDown=enabled&&this.reached?.day===window.day;
+  return {policy:'daily-cost-soft-limit-v1',...window,enabled,limitCny:enabled?limit:0,knownCny:known,estimatedFromConfiguredPrices:true,unknownCost:known===null||usage?.unknownCost===true,unknownSamples:usage?.unknownSamples??null,unattributedHistory:usage?.unattributedHistory===true,error:error||usage?.error||null,mode:budgetUnknown?'budget-unknown':windingDown?'winding-down':enabled?'normal':'disabled',budgetUnknown,backgroundPaused:!!windingDown||budgetUnknown,windingDown:!!windingDown,reachedAt:windingDown?this.reached.at:null,graceEndsAt:windingDown?this.reached.at+grace:null,nextResetAt:window.to,foregroundRepliesAllowed:true,abortInflight:false};
  }
  admit({foreground=false,finishing=false,startedAt}={}){
   const status=this.status(),continued=finishing===true&&Number.isSafeInteger(startedAt)&&startedAt<=status.reachedAt&&this.now()<=status.graceEndsAt;
-  return {...status,allowed:!status.windingDown||foreground===true||continued,reason:status.windingDown?'daily-soft-limit-wind-down':null,retryAt:status.windingDown?status.nextResetAt:null,finishCurrent:!!continued};
+  return {...status,allowed:!status.backgroundPaused||foreground===true||continued,reason:status.budgetUnknown?'daily-budget-unknown':status.windingDown?'daily-soft-limit-wind-down':null,retryAt:status.backgroundPaused?status.nextResetAt:null,finishCurrent:!!continued};
  }
- assertStart(options){const verdict=this.admit(options);if(!verdict.allowed){const error=new Error('今日费用已达到软上限，当前活动收尾后暂缓新的自主活动。');error.code='DAILY_SOFT_LIMIT_WIND_DOWN';error.retryAt=verdict.nextResetAt;throw error;}return verdict;}
+ assertStart(options){const verdict=this.admit(options);if(!verdict.allowed){const error=new Error(verdict.budgetUnknown?'已设置费用软上限，但费用数据暂不可核实；暂停新的自主活动，仍可回复来信。':'今日费用已达到软上限，当前活动收尾后暂缓新的自主活动。');error.code='DAILY_SOFT_LIMIT_WIND_DOWN';error.retryAt=verdict.nextResetAt;throw error;}return verdict;}
 }

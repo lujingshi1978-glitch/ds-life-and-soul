@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QStyle,
+    QSpinBox,
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
@@ -31,6 +32,7 @@ from .config import ConfigError, Settings, read_token, save_settings
 from .hotkey import HotkeyService
 from .hotkey_spec import normalize
 from .transport import ChatError
+from .captions import CaptionOverlay
 from .voice import VoiceController
 
 
@@ -55,6 +57,8 @@ class VoiceOverlay(QWidget):
         self.resize(600, 450)
         self.setMinimumSize(460, 330)
         self._build()
+        self._caption_reply = ""
+        self.caption = CaptionOverlay(settings, self._save_caption_position)
         self.output_audio = QAudioOutput(self)
         self.output_audio.setVolume(0.8)
         self.player = QMediaPlayer(self)
@@ -220,7 +224,6 @@ class VoiceOverlay(QWidget):
         self.cancel_button.setEnabled(busy or bool(self._audio_queue) or self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState)
 
     def toggle_voice(self):
-        self.show_window()
         if self.controller.phase == "recording" and self.controller.finish_recording():
             self.record_button.setText("录音结束…")
             self.status.setText("录音结束，正在准备识别…")
@@ -234,11 +237,15 @@ class VoiceOverlay(QWidget):
             self.controller.start_voice(self.settings)
         except (ChatError, ConfigError) as error:
             self.status.setText(str(error))
+            self.caption.show_message(str(error))
+            self.caption.finish()
             return
         self._reply_started = False
         self._busy(True)
         self.record_button.setText("结束录音")
         self.status.setText("● 正在录音 · 直接说吧；停顿后发送，再按快捷键也可结束")
+        self._caption_reply = ""
+        self.caption.show_message("● 正在听你说话…")
 
     def send_text(self):
         if self.controller.active_id is not None:
@@ -252,6 +259,8 @@ class VoiceOverlay(QWidget):
             self.status.setText(str(error))
             return
         self._append("\n你：" + text + "\n肥鱼：")
+        self._caption_reply = ""
+        self.caption.show_message("你：" + text)
         self.input.clear()
         self._reply_started = True
         self._busy(True)
@@ -275,7 +284,8 @@ class VoiceOverlay(QWidget):
                 self.toggle_voice()
             else:
                 self.status.setText(text)
-                self.show_window()
+                self.caption.show_message(text)
+                self.caption.finish()
         for _ in range(200):
             try:
                 event = self.controller.events.get_nowait()
@@ -290,10 +300,14 @@ class VoiceOverlay(QWidget):
             elif event.kind == "transcript":
                 self._append("\n你（语音）：" + event.text + "\n肥鱼：")
                 self._reply_started = True
+                self.caption.show_message("你：" + event.text)
+                self._caption_reply = ""
             elif event.kind == "waiting":
                 self.status.setText("肥鱼正在想…")
             elif event.kind == "delta":
                 self._append(event.text)
+                self._caption_reply += event.text
+                self.caption.show_message("肥鱼：" + self._caption_reply)
                 self.status.setText("正在接收回复…")
             elif event.kind == "speaking":
                 self.status.setText("文字已回复，正在准备语音…")
@@ -314,6 +328,12 @@ class VoiceOverlay(QWidget):
                     self.status.setText("已取消；识别后送出的文字可能已被后端收到")
                 elif not self._audio_queue and self.player.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
                     self.status.setText("就绪 · 仍是同一个肥鱼")
+                if event.kind == "error":
+                    self.caption.show_message(event.text)
+                elif event.kind == "cancelled":
+                    self.caption.show_message("已取消本轮语音")
+                if not self._audio_queue and self.player.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
+                    self.caption.finish()
                 self._busy(False)
 
     def _play_next(self):
@@ -326,6 +346,7 @@ class VoiceOverlay(QWidget):
         elif self.controller.active_id is None:
             self.status.setText("就绪 · 仍是同一个肥鱼")
             self.cancel_button.setEnabled(False)
+            self.caption.finish()
 
     def _media_status(self, status):
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
@@ -350,6 +371,7 @@ class VoiceOverlay(QWidget):
 
     def configure(self):
         if self.controller.active_id is not None:
+            self.caption.show_message("请先结束或取消当前语音，再调整设置")
             return
         dialog = QDialog(self)
         dialog.setWindowTitle("快捷语音设置")
@@ -371,6 +393,29 @@ class VoiceOverlay(QWidget):
         playback = QCheckBox("播放肥鱼的语音回复")
         playback.setChecked(self.settings.voice_playback)
         form.addRow(playback)
+        captions = QCheckBox("启用小字幕（不会弹出聊天大窗）")
+        captions.setChecked(self.settings.caption_enabled)
+        passthrough = QCheckBox("鼠标穿透；关闭后可拖动字幕")
+        passthrough.setChecked(self.settings.caption_click_through)
+        opacity, font_size, width, hold = QSpinBox(), QSpinBox(), QSpinBox(), QSpinBox()
+        opacity.setRange(20,100); opacity.setValue(round(self.settings.caption_opacity*100)); opacity.setSuffix("%")
+        font_size.setRange(12,40); font_size.setValue(self.settings.caption_font_size)
+        width.setRange(260,1800); width.setValue(self.settings.caption_width); width.setSuffix(" px")
+        hold.setRange(0,120); hold.setValue(self.settings.caption_hold_seconds); hold.setSuffix(" 秒（0为常驻）")
+        x, y = QLineEdit("" if self.settings.caption_x is None else str(self.settings.caption_x)), QLineEdit("" if self.settings.caption_y is None else str(self.settings.caption_y))
+        form.addRow(captions); form.addRow("字幕不透明度",opacity);form.addRow("字幕字号",font_size);form.addRow("字幕宽度",width);form.addRow("回复结束后停留",hold);form.addRow("横向位置（空为居中）",x);form.addRow("纵向位置（空为底部）",y);form.addRow(passthrough)
+        preview=QPushButton("预览字幕")
+        def subtitle_settings():
+            try:
+                return replace(self.settings,caption_enabled=captions.isChecked(),caption_opacity=opacity.value()/100,caption_font_size=font_size.value(),caption_width=width.value(),caption_hold_seconds=hold.value(),caption_click_through=passthrough.isChecked(),caption_x=int(x.text()) if x.text().strip() else None,caption_y=int(y.text()) if y.text().strip() else None).validate()
+            except ValueError as error:
+                raise ConfigError("字幕位置需要整数坐标，或留空使用默认位置") from error
+        def preview_subtitle():
+            try:
+                self.caption.apply_preferences(subtitle_settings()); self.caption.show_message("肥鱼：这是一条字幕预览，不会发送消息。")
+            except ConfigError as error:
+                note.setText(str(error))
+        preview.clicked.connect(preview_subtitle);form.addRow(preview)
         note = QLabel("只保存凭据文件路径，不复制令牌。默认使用系统麦克风；录音仅在按键或点击后开始。")
         note.setWordWrap(True)
         form.addRow(note)
@@ -382,17 +427,29 @@ class VoiceOverlay(QWidget):
         cancel.clicked.connect(dialog.reject)
         def commit():
             try:
-                value = replace(self.settings, gateway_url=url.text().strip(), credentials_file=credentials.text().strip(), hotkey=normalize(hotkey.text()), voice_playback=playback.isChecked())
+                value = replace(subtitle_settings(), gateway_url=url.text().strip(), credentials_file=credentials.text().strip(), hotkey=normalize(hotkey.text()), voice_playback=playback.isChecked())
                 value.validate()
                 save_settings(self.config_path, value)
             except (ConfigError, OSError) as error:
                 note.setText(str(error) if isinstance(error, ConfigError) else "无法保存设置，请检查目录写入权限")
                 return
             self.settings = value
+            self.caption.apply_preferences(value)
             self._register_hotkey()
             dialog.accept()
         save.clicked.connect(commit)
-        dialog.exec()
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            self.caption.apply_preferences(self.settings)
+            self.caption.finish()
+
+    def _save_caption_position(self, x, y):
+        try:
+            value=replace(self.settings,caption_x=x,caption_y=y)
+            save_settings(self.config_path,value)
+            self.settings=value
+            self.caption.settings=value
+        except (ConfigError,OSError):
+            self.status.setText("字幕位置未能保存")
 
     def closeEvent(self, event):
         if self._exiting:
@@ -410,6 +467,8 @@ class VoiceOverlay(QWidget):
         if self.hotkey is not None:
             self.hotkey.close()
         self.tray.hide()
+        self.caption.hide_timer.stop()
+        self.caption.close()
         self._stop_playback()
         try:
             self._cache.cleanup()

@@ -26,6 +26,7 @@
 // 最后自检由调用方按需做（{@link isHardened}）。
 
 import fs from 'node:fs';
+import {secureStatePath} from './strict-state-acl.mjs';
 import { spawnSync } from 'node:child_process';
 
 // Authenticated Users=S-1-5-11, BUILTIN\Users=S-1-5-32-545, Everyone=S-1-1-0
@@ -58,90 +59,30 @@ export function hasPermissiveTrustee(icaclsOutput) {
  * 目标路径的权限是否已收紧：既没有继承来的权限 ACE，也没有宽松主体。
  * @param {string} target - 目录或文件路径。
  */
-export function isHardened(target) {
-  if (process.platform !== 'win32') {
-    try { return (fs.statSync(target).mode & 0o077) === 0; } catch { return false; }
-  }
-  const res = icacls([target], 10000);
-  if (res.error || res.status !== 0) return false;
-  const out = res.stdout ?? '';
-  return !hasInheritedPermissionAce(out) && !hasPermissiveTrustee(out);
-}
+export function isHardened(target) { return secureStatePath(target,{verifyOnly:true}).ok; }
 
 /**
  * 收紧一个**目录**及其整棵子树的权限。
  * @param {string} dir - 目标目录。
  * @returns {{ok: boolean, detail: string}}
  */
-export function hardenDir(dir) {
-  if (process.platform !== 'win32') {
-    try { fs.chmodSync(dir, 0o700); return { ok: true, detail: 'chmod 700' }; }
-    catch (error) { return { ok: false, detail: error?.message ?? String(error) }; }
-  }
-  const user = process.env.USERNAME;
-  if (!user) return { ok: false, detail: '无法确定当前用户名（%USERNAME% 为空）' };
-  const steps = [
-    [dir, '/inheritance:r', '/C', '/Q'],
-    [dir, '/remove:g', ...PERMISSIVE_SIDS, '/T', '/C', '/Q'],
-    [dir, '/T', '/C', '/Q', '/grant', `${user}:F`, '/grant', 'SYSTEM:F', '/grant', 'Administrators:F'],
-    [dir, '/Q', '/grant', `${user}:(OI)(CI)F`, '/grant', 'SYSTEM:(OI)(CI)F', '/grant', 'Administrators:(OI)(CI)F']
-  ];
-  for (const args of steps) {
-    const res = icacls(args);
-    const out = `${res.stdout ?? ''}${res.stderr ?? ''}`;
-    if (res.error) return { ok: false, detail: res.error.message };
-    // /C 会让 icacls 继续处理剩余文件、即使全失败退出码仍是 0，所以必须看输出。
-    if (/access is denied/i.test(out)) {
-      return { ok: false, detail: out.split('\n').filter(Boolean).slice(-3).join(' / ') };
-    }
-  }
-  // 自检：属主必须仍能读到目录内容（防止把 DACL 清空这种"成功"的破坏）。
-  try { fs.readdirSync(dir); }
-  catch (error) { return { ok: false, detail: `收紧后目录已不可读，请检查 ACL（${error?.message ?? error}）` }; }
-  return { ok: true, detail: 'icacls' };
-}
+export function hardenDir(dir) { return secureStatePath(dir); }
 
 /**
  * 收紧一个**文件**的权限（凭据文件用；文件不能带 (OI)(CI)）。
  * @param {string} file - 目标文件。
  * @returns {{ok: boolean, detail: string}}
  */
-export function hardenFile(file) {
-  if (process.platform !== 'win32') {
-    try { fs.chmodSync(file, 0o600); return { ok: true, detail: 'chmod 600' }; }
-    catch (error) { return { ok: false, detail: error?.message ?? String(error) }; }
-  }
-  const user = process.env.USERNAME;
-  if (!user) return { ok: false, detail: '无法确定当前用户名（%USERNAME% 为空）' };
-  const res = icacls([file, '/inheritance:r',
-    '/grant:r', `${user}:F`, '/grant:r', 'SYSTEM:F', '/grant:r', 'Administrators:F', '/C', '/Q']);
-  const out = `${res.stdout ?? ''}${res.stderr ?? ''}`;
-  if (res.error) return { ok: false, detail: res.error.message };
-  if (/access is denied/i.test(out)) {
-    return { ok: false, detail: out.split('\n').filter(Boolean).slice(-2).join(' / ') };
-  }
-  return { ok: true, detail: 'icacls' };
-}
+export function hardenFile(file) { return secureStatePath(file,{recursive:false}); }
 
 // Sensitive atomic replacements need an exact allow-list, including when an
 // existing staging path has an explicit grant to an unexpected local group.
 // The path travels over stdin; it is never interpolated into PowerShell code.
 export function hardenPrivatePath(target,{directory=false}={}){
-  if(process.platform!=='win32'){try{fs.chmodSync(target,directory?0o700:0o600);return {ok:true,detail:'chmod-private'};}catch{return {ok:false,detail:'PRIVATE_ACL_FAILED'};}}
-  const script=`$ErrorActionPreference='Stop';try{
-    $request=[Console]::In.ReadToEnd()|ConvertFrom-Json;$attributes=[IO.File]::GetAttributes($request.path);$isDirectory=($attributes -band [IO.FileAttributes]::Directory) -ne 0;
-    if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $isDirectory -ne [bool]$request.directory){throw 'PRIVATE_PATH_INVALID'}
-    $current=[Security.Principal.WindowsIdentity]::GetCurrent().User;$sids=@($current.Value,'S-1-5-18','S-1-5-32-544');
-    if($request.directory){$acl=New-Object Security.AccessControl.DirectorySecurity}else{$acl=New-Object Security.AccessControl.FileSecurity}
-    $acl.SetAccessRuleProtection($true,$false);$acl.SetOwner($current);
-    foreach($sid in $sids){$identity=New-Object Security.Principal.SecurityIdentifier($sid);if($request.directory){$rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')}else{$rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','Allow')};[void]$acl.AddAccessRule($rule)}
-    if($request.directory){[IO.Directory]::SetAccessControl($request.path,$acl);$actual=[IO.Directory]::GetAccessControl($request.path)}else{[IO.File]::SetAccessControl($request.path,$acl);$actual=[IO.File]::GetAccessControl($request.path)}
-    $rules=$actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]);if(-not $actual.AreAccessRulesProtected -or @($rules).Count -ne 3){throw 'PRIVATE_ACL_UNVERIFIED'}
-    foreach($rule in $rules){$sid=$rule.IdentityReference.Value;if($sid -notin $sids -or $rule.IsInherited -or $rule.AccessControlType -ne 'Allow' -or $rule.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl){throw 'PRIVATE_ACL_UNVERIFIED'}}
-    [Console]::Write('PRIVATE_ACL_OK')
-  }catch{[Console]::Write('PRIVATE_ACL_FAILED');exit 1}`;
-  const result=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',script],{input:JSON.stringify({path:target,directory}),encoding:'utf8',timeout:15000,windowsHide:true});
-  return {ok:!result.error&&result.status===0&&result.stdout==='PRIVATE_ACL_OK',detail:result.status===0?'private-dacl-verified':'PRIVATE_ACL_FAILED'};
+  try{const stat=fs.lstatSync(target);if(stat.isSymbolicLink()||stat.isDirectory()!==directory)return {ok:false,detail:'PRIVATE_ACL_FAILED'};}catch{return {ok:false,detail:'PRIVATE_ACL_FAILED'};}
+  // Mutate only the Access section. Replacing owner/SACL requires privileges an
+  // ordinary Windows account does not necessarily hold, even on its own file.
+  return secureStatePath(target,{recursive:false});
 }
 
 /**

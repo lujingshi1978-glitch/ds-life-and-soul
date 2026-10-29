@@ -1,4 +1,5 @@
 import {chatWindowView} from '../src/chat-window-budget.js';
+import {validateOneBotHttpUrl,configuredOneBotEnabled} from '../src/onebot-client.js';
 import * as runtimeTuning from '../src/runtime-tuning.js';
 import {RuntimeTuningControl} from '../src/runtime-tuning-control.js';
 import {DailyCostBudget} from '../src/daily-cost-budget.js';
@@ -268,7 +269,7 @@ export async function bridgeHarness({ config = {}, savedState, files = {}, globa
   bot.onPrivateMessage(async (event) => {`);
   const timers = new Set();
   const context = vm.createContext({
-    fs, os, path, http, crypto, fileURLToPath, URL, Buffer, AbortSignal, AbortController, mediaPython, console: { log() {}, error() {} },
+    fs, os, path, http, crypto, fileURLToPath, pathToFileURL, URL, Buffer, AbortSignal, AbortController, mediaPython, validateOneBotHttpUrl, configuredOneBotEnabled, console: { log() {}, error() {} },
     fetch: fakeFetch,
     // 锁文件探测用（bridge.js 顶层的 consolePortInUse）；
     // 固定桩掉：测试不应该真去 netstat 宿主机。

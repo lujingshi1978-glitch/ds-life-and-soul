@@ -46,11 +46,20 @@ class _CancellableReader(io.RawIOBase):
             except BlockingIOError:
                 continue
 
+    def close(self) -> None:
+        if not self.closed:
+            try:
+                self.owner.release_reader()
+            finally:
+                super().close()
+
 
 class _CancellableSocket:
     def __init__(self, stream: socket.socket, handle: RequestHandle, timeout: int) -> None:
         self.socket, self.handle = stream, handle
         self.deadline = time.monotonic() + timeout
+        self._readers = 0
+        self._close_requested = False
         stream.setblocking(False)
 
     def wait(self, read: bool) -> None:
@@ -83,13 +92,24 @@ class _CancellableSocket:
     def makefile(self, mode: str):
         if mode != "rb":
             raise ValueError("read mode required")
+        self._readers += 1
         return io.BufferedReader(_CancellableReader(self))
+
+    def release_reader(self) -> None:
+        self._readers -= 1
+        if self._close_requested and self._readers == 0:
+            self.socket.close()
 
     def shutdown(self, how: int) -> None:
         self.socket.shutdown(how)
 
     def close(self) -> None:
-        self.socket.close()
+        # HTTPConnection transfers ownership to HTTPResponse for close-delimited
+        # bodies. Mirror socket.makefile's reference count instead of closing
+        # the descriptor while that response is still reading from it.
+        self._close_requested = True
+        if self._readers == 0:
+            self.socket.close()
 
 
 class RequestHandle:
@@ -172,6 +192,7 @@ def post_audio(settings: Settings, endpoint: str, body: dict, handle: RequestHan
     if len(payload) > 2800000:
         raise ChatError("录音超过大小限制")
     connection = http.client.HTTPConnection("127.0.0.1", settings.port, timeout=3)
+    response = None
     try:
         connection.connect()
         connection.sock = _CancellableSocket(connection.sock, handle, settings.timeout_seconds)
@@ -201,6 +222,8 @@ def post_audio(settings: Settings, endpoint: str, body: dict, handle: RequestHan
             raise ChatError("语音处理超时；请求未自动重试") from None
         raise ChatError("无法连接肥鱼本机语音接口，或连接已中断") from None
     finally:
+        if response is not None:
+            response.close()
         connection.close()
 
 
@@ -211,6 +234,7 @@ def chat(settings: Settings, text: str, handle: RequestHandle, on_delta: Callabl
     token = read_token(settings)
     handle.check()
     connection = http.client.HTTPConnection("127.0.0.1", settings.port, timeout=3)
+    response = None
     try:
         # Literal IPv4 loopback avoids DNS rebinding and operating-system proxies.
         connection.connect()
@@ -269,4 +293,6 @@ def chat(settings: Settings, text: str, handle: RequestHandle, on_delta: Callabl
             raise ChatError("等待超时；请求未自动重试，请检查肥鱼后端状态") from None
         raise ChatError("无法连接肥鱼本机网关，或连接已中断；请检查后端是否启动") from None
     finally:
+        if response is not None:
+            response.close()
         connection.close()

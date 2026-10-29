@@ -20,7 +20,7 @@ export class ThoughtUsageReader {
   drain(){if(!fs.existsSync(this.file))return 0;const size=fs.statSync(this.file).size;if(size<this.offset){this.offset=0;this.tail='';this.decoder=new StringDecoder('utf8');}if(size===this.offset)return 0;
     const fd=fs.openSync(this.file,'r');let n,buffer=Buffer.alloc(Math.min(size-this.offset,1024*1024));try{n=fs.readSync(fd,buffer,0,buffer.length,this.offset);}finally{fs.closeSync(fd);}this.offset+=n;
     const text=this.tail+this.decoder.write(buffer.subarray(0,n)),lines=text.split('\n');this.tail=lines.pop();let count=0;
-    for(const line of lines){let r;try{r=JSON.parse(line);}catch{continue;}if(r.usage&&/^thought-[\w-]+$/.test(r.id)){try{this.ingest(r);count++;}catch(e){this.offset=0;this.tail='';this.decoder=new StringDecoder('utf8');throw e;}}}
+    for(const line of lines){let r;try{r=JSON.parse(line);}catch{continue;}if(r&&typeof r==='object'&&!Array.isArray(r)&&r.usage&&/^thought-[\w-]+$/.test(r.id)){try{this.ingest(r);count++;}catch(e){this.offset=0;this.tail='';this.decoder=new StringDecoder('utf8');throw e;}}}
     return count;
   }
 }

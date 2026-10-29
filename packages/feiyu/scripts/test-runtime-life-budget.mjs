@@ -57,8 +57,8 @@ test('daily cost soft limit stops new background work, permits replies and bound
 
 test('unknown prices and unavailable usage remain unknown and never become invented costs',()=>{
  const settings=defaultRuntimeTuning();settings.budget.dailySoftLimitCny=1;
- const budget=new DailyCostBudget({source:settings,now:()=>midday,readSpending:()=>({currency:'CNY',knownCny:.2,unknownCost:true,unknownSamples:2})});assert.equal(budget.status().unknownCost,true);assert.equal(budget.admit().allowed,true);
- const failed=new DailyCostBudget({source:settings,now:()=>midday,readSpending:()=>{throw Error('fixture');}});assert.equal(failed.status().knownCny,null);assert.equal(failed.status().error,'usage-unavailable');assert.equal(failed.admit().allowed,true);
+ const budget=new DailyCostBudget({source:settings,now:()=>midday,readSpending:()=>({currency:'CNY',knownCny:.2,unknownCost:true,unknownSamples:2})});assert.equal(budget.status().unknownCost,true);assert.equal(budget.admit().allowed,false);assert.equal(budget.admit({foreground:true}).allowed,true);
+ const failed=new DailyCostBudget({source:settings,now:()=>midday,readSpending:()=>{throw Error('fixture');}});assert.equal(failed.status().knownCny,null);assert.equal(failed.status().error,'usage-unavailable');assert.equal(failed.admit().allowed,false);assert.equal(failed.status().mode,'budget-unknown');
 });
 
 test('daily ledger uses exact Beijing day, idempotent provider usage, known model rates and no lifetime baseline attribution',t=>{

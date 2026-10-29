@@ -50,7 +50,7 @@ test('host-timestamped bounded work may finish within grace, cannot request anot
 test('foreground admission stays isolated across concurrent async tasks and midnight resumes ordinary background calls',async()=>{
  const f=budgetFixture();f.usage.knownCny=1;f.daily.status();
  const results=await Promise.allSettled([foregroundThought(async()=>{await Promise.resolve();return accountThought(f.budget,input,f.invoke,{dailyCostBudget:f.daily});}),(async()=>{await Promise.resolve();return accountThought(f.budget,input,f.invoke,{dailyCostBudget:f.daily});})()]);assert.equal(results[0].status,'fulfilled');assert.equal(results[1].status,'rejected');assert.equal(f.calls.invoke,1);
- f.clock.at=beijingDayWindow(f.clock.at).to;f.usage.knownCny=0;f.usage.unknownCost=true;f.usage.unknownSamples=1;await accountThought(f.budget,input,f.invoke,{dailyCostBudget:f.daily});assert.equal(f.calls.invoke,2);assert.equal(f.daily.status().unknownCost,true);
+ f.clock.at=beijingDayWindow(f.clock.at).to;f.usage.knownCny=0;f.usage.unknownCost=true;f.usage.unknownSamples=1;await assert.rejects(accountThought(f.budget,input,f.invoke,{dailyCostBudget:f.daily}),{code:'DAILY_SOFT_LIMIT_WIND_DOWN'});assert.equal(f.calls.invoke,1);assert.equal(f.daily.status().mode,'budget-unknown');f.usage.unknownCost=false;f.usage.unknownSamples=0;await accountThought(f.budget,input,f.invoke,{dailyCostBudget:f.daily});assert.equal(f.calls.invoke,2);
 });
 
 function nightFixture(t,{clockAt=instant('2026-10-28T11:00:00'),start=10,end=15,cap=false}={}){

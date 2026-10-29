@@ -23,6 +23,18 @@ export function validateOneBotUrl(value) {
   return value;
 }
 
+export function validateOneBotHttpUrl(value){
+  let u;try{if(typeof value!=='string'||value.trim()!==value||/[\x00-\x20\x7f]/.test(value))throw Error();u=new URL(value);}catch{throw fault('ONEBOT_HTTP_ENDPOINT_INVALID');}
+  if(!['http:','https:'].includes(u.protocol)||!['127.0.0.1','[::1]'].includes(u.hostname)||u.username||u.password||u.search||u.hash||u.pathname!=='/')throw fault('ONEBOT_HTTP_ENDPOINT_DENIED');return u.origin;
+}
+
+// Explicit switches always win. Older installations predate the switch and
+// already opted in by configuring their gateway; a fresh empty config does not.
+export function configuredOneBotEnabled(settings){
+  if(settings?.enabled!==undefined)return settings.enabled===true;
+  return typeof settings?.wsUrl==='string'&&settings.wsUrl.trim().length>0;
+}
+
 export function text(value) { return {type:'text',data:{text:String(value??'')}}; }
 const message = value => value && typeof value==='object' && !Array.isArray(value) && typeof value.type==='string' ? [value] : value;
 const bounded = (value,fallback,min,max) => Number.isSafeInteger(value)&&value>=min&&value<=max?value:fallback;

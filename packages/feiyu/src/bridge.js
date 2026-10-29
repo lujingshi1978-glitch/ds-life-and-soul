@@ -57,8 +57,8 @@ import { execFileSync } from 'node:child_process';
 import yaml from 'js-yaml';
 import { extractPresetPrefix, presetPromptBlockers, presetPromptWarnings, renderPresetPromptYaml, presetBundleStatus, writePresetPromptFiles } from './preset-prompt.js';
 import { GEN1_ROLE_LINE_RE, parseRoleSections, roleCharStats, roleSectionReport, selectRoleText } from './role-card.js';
-import { fileURLToPath } from 'node:url';
-import { SnowLumaWebSocketClient, text } from './onebot-client.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { SnowLumaWebSocketClient, text, validateOneBotHttpUrl, configuredOneBotEnabled } from './onebot-client.js';
 import { NodeApiClient, unwrap, createTurnCollector, discoverDshLaunchToken } from './dsh-client.js';
 import { mdToPlain, splitForQQ, truncateText, truncateTextTail } from './md-to-plain.js';
 import { SENSITIVE_RE } from './sensitive.js';
@@ -340,23 +340,10 @@ function loadOrCreateConsoleToken() {
  * 宁可明确报"没做成"，也不要假装已经安全。
  */
 function hardenStateDirAcl() {
-  const result = hardenDir(STATE_DIR);
-  if (result.ok) {
-    stateDirHardened = true;
-    const file=path.join(ROOT,'config.json'),credential=hardenPrivatePath(file);if(!credential.ok)log('⚠️ config.json 权限收紧未通过核对，请检查配置文件 ACL；配置内容未改变。');
-    return;
-  }
-  stateDirHardened = false;
-  if (process.platform !== 'win32') {
-    log(`⚠️ 收紧 state/ 权限失败（chmod 700）：${result.detail}`);
-    return;
-  }
-  log('⚠️ 未能收紧 state/ 目录权限：本机任何已登录用户都可能读到控制台令牌与 QQ 聊天记录。');
-  log(`   原因：${String(result.detail).slice(0, 300)}`);
-  log('   改 ACL 需要管理员权限。请用**管理员身份**打开终端后执行下面这几条命令（或在控制台「访问与安全」页点按钮）：');
-  log(`   ${manualDirCommand(STATE_DIR)}`);
+  const result=hardenDir(STATE_DIR);stateDirHardened=result.ok;
+  if(!result.ok)throw Error('PRIVATE_STATE_ACL_REQUIRED：私人数据权限未通过核验，未启动管理服务。');
+  if(!hardenPrivatePath(path.join(ROOT,'config.json')).ok)throw Error('PRIVATE_CONFIG_ACL_REQUIRED');
 }
-
 function readActivityTail(n) {
   try {
     const raw = fs.readFileSync(ACTIVITY_LOG, 'utf8');
@@ -778,7 +765,7 @@ function loadConfig() {
       allowRemote: false,
       ...(file.dsh ?? {})
     },
-    snowluma: { wsUrl: 'ws://127.0.0.1:3001', accessToken: '', ...(file.snowluma ?? {}) },
+    snowluma: { wsUrl: 'ws://127.0.0.1:3001', accessToken: '', ...(file.snowluma ?? {}), enabled:configuredOneBotEnabled(file.snowluma) },
     // 空 => 每个会话在 state/agents/<key> 下建独立工作目录
     sessionCwd: file.sessionCwd ?? '',
     agentPreset: file.agentPreset ?? 'qq-chat',
@@ -827,7 +814,7 @@ function loadConfig() {
       ...(file.slang ?? {})
     },
     social: {
-      enabled: true,
+      enabled: false,
       // 启动阶段（观望）
       triggerProbability: 0.1,        // 普通消息触发进入活跃的概率
       contextWindow: 20,              // 触发/活跃回复时附带的上下文条数
@@ -845,7 +832,7 @@ function loadConfig() {
       idleRetryProbability: 0.25,     // 冷场时 AI 继续说一句（试探群友意愿）的概率
       idleRetryWaitMs: 2 * 60 * 1000, // 试探后等待回应的窗口，仍无人说话则 100% 回观望
       // 二期：观望阶段主动开话题（第三种触发）
-      proactiveEnabled: true,         // 总开关
+      proactiveEnabled: false,         // 总开关
       proactiveIdleThresholdMs: 30 * 60 * 1000, // 群安静多久才进入可判定状态
       proactiveCheckMinMs: 45 * 60 * 1000,      // 判定间隔范围
       proactiveCheckMaxMs: 90 * 60 * 1000,
@@ -866,7 +853,7 @@ function loadConfig() {
       ...(file.social ?? {})
     },
     socialV2: {
-      enabled: true,
+      enabled: false,
       autoReplyCheckMs: 30000,
       agentPreset: 'qq-chat-v2',
       provideRecommendations: true,
@@ -958,7 +945,7 @@ function loadConfig() {
         }
       },
       proactive: {
-        enabled: true,
+        enabled: false,
         ownerOnly: true,
         contactCooldownMs: 30 * 60 * 1000,
         maxUnansweredContacts: 3,
@@ -1124,6 +1111,7 @@ function loadConfig() {
   }
 
   cfg.socialV2.mind = normalizeCognitionConfig(cfg.socialV2.mind, {root:ROOT,stateDir:STATE_DIR}).config;
+  cfg.snowluma.httpUrl=validateOneBotHttpUrl(cfg.snowluma.httpUrl||'http://127.0.0.1:3000');
   cfg.runtimeTuning=normalizeRuntimeTuning(file.runtimeTuning||{},{legacyConfig:cfg});
   cfg.runtimeTuningRevision=Number.isSafeInteger(file.runtimeTuningRevision)?file.runtimeTuningRevision:0;
   roleInjectMaxChars=applyRoleInjectLimit(cfg.runtimeTuning.text.roleInjectChars);
@@ -1545,8 +1533,8 @@ async function main() {
     try {
       const headers = { 'content-type': 'application/json', ...(cfg.snowluma.accessToken ? { authorization: `Bearer ${cfg.snowluma.accessToken}` } : {}) };
       const onebot = async action => {
-        const res = await fetch(`${cfg.snowluma.httpUrl || 'http://127.0.0.1:3000'}/${action}`, {
-          method: 'POST', headers, body: '{}', signal: AbortSignal.timeout(10000),
+        const res = await fetch(`${cfg.snowluma.httpUrl || 'http://127.0.0.1:3000'}/${action}`, { redirect:'error',
+          method: 'POST', redirect:'error', headers, body: '{}', signal: AbortSignal.timeout(10000),
         });
         const result = await res.json();
         if (!res.ok || result.status !== 'ok') throw new Error(`OneBot ${action} 未成功（${res.status}）`);
@@ -1921,7 +1909,7 @@ async function main() {
           ? { user_id: Number(id), message: [recordSegment] }
           : { group_id: Number(id), message: [recordSegment] };
         assertAwake(key);
-    const res = await fetch(`${httpUrl}/${action}`, {
+    const res = await fetch(`${httpUrl}/${action}`, { redirect:'error',
           method: 'POST',
           headers: {
             'content-type': 'application/json',
@@ -1997,7 +1985,7 @@ async function main() {
     if (!messageId) return null;
     try {
       const httpUrl = String(cfg.snowluma?.httpUrl || 'http://127.0.0.1:3000').replace(/\/+$/, '');
-      const res = await fetch(`${httpUrl}/get_msg`, {
+      const res = await fetch(`${httpUrl}/get_msg`, { redirect:'error',
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -2056,7 +2044,7 @@ async function main() {
     if (wantReadback && sent.messageId) {
       try {
         const httpUrl = String(cfg.snowluma?.httpUrl || 'http://127.0.0.1:3000').replace(/\/+$/, '');
-        const res = await fetch(`${httpUrl}/fetch_ptt_text`, {
+        const res = await fetch(`${httpUrl}/fetch_ptt_text`, { redirect:'error',
           method: 'POST',
           headers: {
             'content-type': 'application/json',
@@ -2119,7 +2107,7 @@ async function main() {
         await sleep(randInt(800, 2000));
         assertSendAllowed.effect();
         assertAwake(key);
-    const res = await fetch(`${httpUrl}/${action}`, {
+    const res = await fetch(`${httpUrl}/${action}`, { redirect:'error',
           method: 'POST',
           headers: {
             'content-type': 'application/json',
@@ -2448,8 +2436,7 @@ async function main() {
 
   const thoughtMeter=new ThoughtUsageReader(path.join(STATE_DIR,'thought-usage.jsonl'),r=>{
     thoughtKeys.set(r.id,'internal:'+r.purpose);
-    tokenLedger.ingestEvent({sessionId:r.id,at:r.at,model:r.model,provider:r.provider,event:{type:'assistant/message',seq:1,time:r.at,data:{turn:1,step:1,usage:r.usage}}});
-    thoughtKeys.delete(r.id);
+    try{tokenLedger.ingestThoughtUsage(r);}finally{thoughtKeys.delete(r.id);}
   });
   thoughtMeter.drain();setInterval(()=>{try{thoughtMeter.drain();}catch(e){log('后台用量读取失败',e.message);}},5000).unref?.();
 
@@ -3124,7 +3111,7 @@ async function main() {
     if(cfg.snowluma.enabled===false)return;
     const httpUrl = String(cfg.snowluma?.httpUrl || 'http://127.0.0.1:3000').replace(/\/+$/, '');
     try {
-      const res = await fetch(`${httpUrl}/get_status`, {
+      const res = await fetch(`${httpUrl}/get_status`, { redirect:'error',
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -3232,8 +3219,9 @@ async function main() {
       const contextFor=()=>{const resource=roleResource();return roleWrites.snapshot(resource,resource.startsWith('card:')?{content:readRoleContent(resource.slice(5))}:{});};
       const validateConsoleBody=body=>{if(req.headers['x-agent-token']!==undefined||req.headers['x-agent-call']!==undefined)return body;let context;try{context=JSON.parse(decodeURIComponent(String(req.headers['x-role-context']||'null')));}catch{}const resource=url.pathname==='/api/roles/update'?'card:'+body.name:roleResource();const options={transition:roleTransition,...(resource.startsWith('card:')?{content:readRoleContent(resource.slice(5))}:{})};if(body.profileId!==undefined&&body.profileId!==activeProfile.id)throw Object.assign(new Error('ROLE_WRITE_CONFLICT'),{statusCode:409});roleWrites.assert(context,resource,options);req.roleWriteContext=context;return body;};
       const sendJson = (obj, status = 200) => {
-        if(req.method==='GET'&&status<400)res.setHeader('x-role-context',encodeURIComponent(JSON.stringify(contextFor())));
         if(req.method==='POST'&&status<400&&obj.ok!==false&&req.roleWriteContext&&!roleResource().startsWith('card:'))roleWrites.touch(req.roleWriteContext.resource);
+        if(req.method==='GET'&&status<400)res.setHeader('x-role-context',encodeURIComponent(JSON.stringify(contextFor())));
+        if(req.method==='POST'&&status<400&&obj.ok!==false&&req.roleWriteContext?.profileId===activeProfile.id&&req.roleWriteContext.activationEpoch===roleWrites.activation){const resource=req.roleWriteContext.resource;res.setHeader('x-role-context',encodeURIComponent(JSON.stringify(roleWrites.snapshot(resource,resource.startsWith('card:')?{content:readRoleContent(resource.slice(5))}:{}))));}
         if(status>=500){const route=url.pathname;const capability=/qzone/.test(route)?'qzone':/voice|speech|transcri/.test(route)?'voice':/browser/.test(route)?'browser':/file/.test(route)?'files':null;if(capability){const report=capabilityCenter.report(capability,obj.error||'服务调用失败');obj={...obj,...report};}}
         if(req.method==='GET'&&status<400&&req.headers['x-agent-token']===undefined&&req.headers['x-agent-call']===undefined&&obj&&typeof obj==='object'&&!Array.isArray(obj))obj={...obj,_writeVersions:roleWrites.versions(),_roleProjectionPending:roleWrites.pending()};
         res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...SECURITY_HEADERS });
@@ -3683,6 +3671,7 @@ async function main() {
           if(url.pathname==='/api/apps/wechat'&&req.method==='GET'){sendJson({ok:true,...applications.wechat.status()});return;}
           if(url.pathname==='/api/apps/wechat/login'&&req.method==='POST'){sendJson({ok:true,...await applications.wechat.startLogin()});return;}
           if(url.pathname==='/api/apps/wechat/verify'&&req.method==='POST'){const b=await readBody();sendJson({ok:true,...applications.wechat.verify(b.code)});return;}
+          if(url.pathname==='/api/apps/social/setup'&&req.method==='POST'){const b=await readBody();if(!['zhihu','youtube','xiaohongshu','weibo','tieba','douyin'].includes(b.platform))throw Error('该组件请通过安装向导选择后重启');if(applications.social.busy)throw Error('平台动作正在进行，结束后再安装组件');if(applications.socialSetup)throw Error('平台组件正在安装，请等待结果');applications.socialSetup=true;try{const {setupSocialRuntime}=await import(pathToFileURL(path.resolve(ROOT,'../../scripts/social-runtime.mjs')).href);sendJson({ok:true,value:await setupSocialRuntime({repoRoot:path.resolve(ROOT,'../..')})});}finally{applications.socialSetup=false;}return;}
           if(url.pathname==='/api/apps/social/check'&&req.method==='POST'){const b=await readBody();sendJson({ok:true,value:await applications.social.check(b.platform)});return;}
           if(url.pathname==='/api/apps/social/login'&&req.method==='POST'){const b=await readBody();sendJson({ok:true,value:await applications.social.login(b.platform,{done:b.done===true})});return;}
           if(url.pathname==='/api/apps/social/settings'&&req.method==='POST'){const b=await readBody();sendJson({ok:true,value:applications.social.update(b.platform,b.values)});return;}
@@ -5953,7 +5942,7 @@ async function main() {
             if (body.readback === true && sent.messageId) {
               try {
                 const httpUrl = String(cfg.snowluma?.httpUrl || 'http://127.0.0.1:3000').replace(/\/+$/, '');
-                const res = await fetch(`${httpUrl}/fetch_ptt_text`, {
+                const res = await fetch(`${httpUrl}/fetch_ptt_text`, { redirect:'error',
                   method: 'POST',
                   headers: {
                     'content-type': 'application/json',
@@ -7684,7 +7673,7 @@ async function main() {
     const params = kind === 'private' ? { user_id: Number(id), message: segments } : { group_id: Number(id), message: segments };
     const httpUrl = String(cfg.snowluma?.httpUrl || 'http://127.0.0.1:3000').replace(/\/+$/, '');
     assertAwake(convKey(kind,id));sendGuard?.effect();
-    const res = await fetch(`${httpUrl}/${action}`, {
+    const res = await fetch(`${httpUrl}/${action}`, { redirect:'error',
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -9331,7 +9320,7 @@ async function main() {
     think:(system,material,signal)=>foregroundThought(()=>callThought(api,fs.readFileSync(path.join(STATE_DIR,'console-token'),'utf8').trim(),{core:system,prompt:material,json:true,provider:cfg.dsh.provider||'deepseek-official',model:cfg.dsh.model||'deepseek-flash'},signal)),
     onDecision:({tool,allow,reason,cached,turnId})=>behaviorHistory.add('tool',JSON.stringify({event:'delegation-intent',title:'当前管理委托核对',tool,allow,reason,cached,turnId}),{scope:'self'}),
   });
-  applications.social=new SocialPlatforms({root:ROOT,profileDir:PROFILE_DIR,bili:()=>sharedBiliAdapter,imagePerception:async(target,params,signal)=>{const batch=await applications.social.browser.noteImages(target,params,signal);if(batch.kind==='video')return batch;if(!batch.frames.length)return {...batch,available:false,coverage:'note-images'};const answer=await sharedThought({core:'你是图片证据分析器，只描述实际附图，不根据标题或正文补全图片。',prompt:'这些是小红书笔记正文的一批配图，按给定图序观察内容、可读文字、细节和情绪。只描述本批，未覆盖全部图序时不能声称看完所有配图。不要把推荐图、头像或文字说明当成实际配图。只返回 {description:简明整体描述,images:[{index:图序,description:画面描述,visibleText:可读文字}],uncertain:[]}。图片信息：'+JSON.stringify({totalImages:batch.totalImages,imageOffset:batch.imageOffset,nextImageOffset:batch.nextImageOffset,images:batch.frames.map(({image,...f})=>f)}),images:batch.frames.map(f=>f.image)},signal);if(typeof answer.data?.description!=='string'||!answer.data.description.trim())throw Error('配图视觉结果无效');return {...batch,frames:batch.frames.map(({image,...f})=>f),available:true,coverage:'note-images',vision:answer.data};},videoPerception:async(platform,target,signal)=>{const frames=await applications.social.browser.videoFrames(platform,target,signal);const answer=await sharedThought({core:'你是画面证据分析器，只描述附图，不根据标题补全。',prompt:'按时间描述实际画面、可读文字与动作；模糊之处保留不确定性。只返回 {description:简明画面描述,uncertain:[]}。采样：'+JSON.stringify(frames.map(({image,...f})=>f)),images:frames.map(f=>f.image)},signal);return {available:true,coverage:'sampled-video-frames',frames:frames.map(({image,...f})=>f),vision:answer.data};},canAct:()=>!resting()&&!socialV2.paused,onEvent:e=>behaviorHistory.add('activity',JSON.stringify(e),{scope:'self'}),onResource:({platform,action,target,text,kind='web-reading'})=>{if(!mindSystem?.isV2)return null;const ref=mindSystem.archive.put('social:'+(energyExempt()?'admin:':'')+crypto.createHash('sha256').update(platform+action+target+text).digest('hex'),'self',kind,text,{platform,sourceUrl:target,privacyLabel:'private',actualAction:action,...(energyExempt()?{administratorOperation:true}:{})},Date.now());mindSystem.runtime.scheduleEncoding();return ref.sourceId+'@'+ref.revision;}});
+  applications.social=new SocialPlatforms({root:ROOT,profileDir:PROFILE_DIR,consolePort:cfg.consolePort,bili:()=>sharedBiliAdapter,imagePerception:async(target,params,signal)=>{const batch=await applications.social.browser.noteImages(target,params,signal);if(batch.kind==='video')return batch;if(!batch.frames.length)return {...batch,available:false,coverage:'note-images'};const answer=await sharedThought({core:'你是图片证据分析器，只描述实际附图，不根据标题或正文补全图片。',prompt:'这些是小红书笔记正文的一批配图，按给定图序观察内容、可读文字、细节和情绪。只描述本批，未覆盖全部图序时不能声称看完所有配图。不要把推荐图、头像或文字说明当成实际配图。只返回 {description:简明整体描述,images:[{index:图序,description:画面描述,visibleText:可读文字}],uncertain:[]}。图片信息：'+JSON.stringify({totalImages:batch.totalImages,imageOffset:batch.imageOffset,nextImageOffset:batch.nextImageOffset,images:batch.frames.map(({image,...f})=>f)}),images:batch.frames.map(f=>f.image)},signal);if(typeof answer.data?.description!=='string'||!answer.data.description.trim())throw Error('配图视觉结果无效');return {...batch,frames:batch.frames.map(({image,...f})=>f),available:true,coverage:'note-images',vision:answer.data};},videoPerception:async(platform,target,signal)=>{const frames=await applications.social.browser.videoFrames(platform,target,signal);const answer=await sharedThought({core:'你是画面证据分析器，只描述附图，不根据标题补全。',prompt:'按时间描述实际画面、可读文字与动作；模糊之处保留不确定性。只返回 {description:简明画面描述,uncertain:[]}。采样：'+JSON.stringify(frames.map(({image,...f})=>f)),images:frames.map(f=>f.image)},signal);return {available:true,coverage:'sampled-video-frames',frames:frames.map(({image,...f})=>f),vision:answer.data};},canAct:()=>!resting()&&!socialV2.paused,onEvent:e=>behaviorHistory.add('activity',JSON.stringify(e),{scope:'self'}),onResource:({platform,action,target,text,kind='web-reading'})=>{if(!mindSystem?.isV2)return null;const ref=mindSystem.archive.put('social:'+(energyExempt()?'admin:':'')+crypto.createHash('sha256').update(platform+action+target+text).digest('hex'),'self',kind,text,{platform,sourceUrl:target,privacyLabel:'private',actualAction:action,...(energyExempt()?{administratorOperation:true}:{})},Date.now());mindSystem.runtime.scheduleEncoding();return ref.sourceId+'@'+ref.revision;}});
   shutdownApplications=()=>applications.close();
   const sharedThought=(input,signal)=>callThought(api,fs.readFileSync(path.join(STATE_DIR,'console-token'),'utf8').trim(),{provider:cfg.dsh.provider||'deepseek-official',model:cfg.dsh.model||'deepseek-flash',...input},signal);
   const greetingOptions={runtimeTuning:()=>cfg.runtimeTuning,db:contactStore.db,now:()=>Date.now(),

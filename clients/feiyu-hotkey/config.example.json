@@ -4,5 +4,13 @@
   "credentials_file": "",
   "hotkey": "Ctrl+Alt+Space",
   "timeout_seconds": 180,
-  "voice_playback": true
+  "voice_playback": true,
+  "caption_enabled": true,
+  "caption_opacity": 0.86,
+  "caption_font_size": 18,
+  "caption_width": 640,
+  "caption_x": null,
+  "caption_y": null,
+  "caption_hold_seconds": 10,
+  "caption_click_through": true
 }

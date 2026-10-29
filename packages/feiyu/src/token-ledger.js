@@ -386,6 +386,16 @@ export function createTokenLedger({
 
   // ── 摄入 ────────────────────────────────────────────────────────────────
 
+  /** A thought UUID represents one completed/cancelled model invocation. Its
+   * single final usage is immutable, unlike an ordinary multi-step session.
+   * Evicting its detail must not make a journal replay bill it again. */
+  function ingestThoughtUsage(record = {}) {
+    if (!/^thought-[\w-]+$/.test(record.id || '') || !record.usage) return false;
+    if (evicted.has(record.id)) return false;
+    return ingestEvent({sessionId:record.id,at:record.at,model:record.model,provider:record.provider,
+      event:{type:'assistant/message',seq:1,time:record.at,data:{turn:1,step:1,usage:record.usage}}});
+  }
+
   /**
    * 摄入一条会话事件。
    * @param {object} args
@@ -972,6 +982,7 @@ export function createTokenLedger({
 
   return {
     ingestEvent,
+    ingestThoughtUsage,
     ingestBaseline,
     ingestSnapshotRecords,
     summary,

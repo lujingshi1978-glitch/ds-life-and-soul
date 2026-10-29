@@ -11,6 +11,7 @@ import { stopOwned, inspectProcess } from "./owned-processes.mjs";
 import { createInterface } from "node:readline/promises";
 import { saveQqConfig, probeQqGateway, qqErrorMessage, createQqPrompts } from "./qq-setup.mjs";
 import { resolvePython311 } from "./python-runtime.mjs";
+import { secureStatePath } from "../packages/feiyu/src/strict-state-acl.mjs";
 export const REPO = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "..",
@@ -207,6 +208,7 @@ export function buildEnvironment(c) {
 }
 export function seedConfig(c) {
   c = normalize(c);
+  for (const dir of [local,path.join(CORE,"state")]) { fs.mkdirSync(dir,{recursive:true});if(!secureStatePath(dir,{skipLinks:true}).ok)throw Error("私人数据目录权限核验失败，未写入凭据或启动服务。"); }
   const configFile = path.join(CORE, "config.json");
   if (exists(configFile)) return { created: false };
   fs.mkdirSync(path.join(CORE, "state"), { recursive: true });
@@ -336,6 +338,10 @@ export async function install(
   });
   if (state.installed && !state.ok)
     throw Error("已有profile被外部修改，请先核对并手动解决");
+  if(state.installed&&c.video&&!state.bundles.includes("dsh-bili-scroll")){
+    if(registry().some(p=>{const live=processIdentity(p.pid);return live&&identityHash(live)===p.identityHash;}))throw Error("请先停止当前目录的服务，再安装可选插件。活动profile不能热替换。");
+    lifecycle.addOptionalBundles({dshHome:c.dshHome,profile:c.profile,optional:["dsh-bili-scroll","dsh-read-animation"]});
+  }
   if (!state.installed)
     lifecycle.installProfile({
       root: CORE,
@@ -345,9 +351,7 @@ export async function install(
       bridgeUrl: "http://127.0.0.1:" + c.consolePort,
     });
   if (c.browser && !skipDependencies) {
-    const dir = path.join(REPO, "work/integration-runtime/browser");
-    fs.mkdirSync(dir, { recursive: true });
-    await npm(["install", "--save-exact", "@playwright/mcp@0.0.83"], dir);
+    const social = await import('./social-runtime.mjs'); await social.setupSocialRuntime({repoRoot:REPO});
   }
   if (c.video && !skipDependencies)
     for (const name of ["dsh-bili-scroll", "dsh-read-animation"])
@@ -372,13 +376,17 @@ export async function install(
           "；可查看work/integration-runtime/media/voice-runtime.json后重试，或先选文字模式",
       );
   }
-  write(path.join(local, "hotkey-config.json"), {
+  const hotkeyFile=path.join(local,"hotkey-config.json"),oldHotkey=exists(hotkeyFile)?json(hotkeyFile):{};
+  write(hotkeyFile, {
     version: 1,
     gateway_url: "http://127.0.0.1:" + c.companionPort + "/pet",
     credentials_file: path.join(CORE, "state/companion-gateway.json"),
     hotkey: "Ctrl+Alt+Space",
     timeout_seconds: 180,
     voice_playback: true,
+    ...oldHotkey,
+    gateway_url: "http://127.0.0.1:" + c.companionPort + "/pet",
+    credentials_file: path.join(CORE, "state/companion-gateway.json"),
   });
   write(setupFile, c);
   return { ok: true, installed: true, profile: c.profile };
@@ -488,12 +496,21 @@ export function ownDshLaunchToken(log, port) {
     if (Number(match[1]) === port) return match[2];
   return null;
 }
-export async function start({ open = true, client = true } = {}) {
+export async function start(options={}) {
+  const before=new Set(registry().map(p=>p.id+':'+p.pid+':'+p.identityHash));
+  try{return await startInstalled(options);}catch(error){
+    const all=registry(),created=all.filter(p=>!before.has(p.id+':'+p.pid+':'+p.identityHash));
+    if(created.length){const cleanup=stopOwned(created),createdKeys=new Set(created.map(p=>p.id+':'+p.pid+':'+p.identityHash));write(registryFile,[...all.filter(p=>!createdKeys.has(p.id+':'+p.pid+':'+p.identityHash)),...cleanup.remaining]);error.cleanup={ok:cleanup.remaining.length===0,remaining:cleanup.remaining.map(p=>p.id)};}
+    throw error;
+  }
+}
+async function startInstalled({ open = true, client = true } = {}) {
   if (!exists(setupFile)) throw Error("请先运行 setup");
   if (!coreDependenciesReady()) throw Error("核心依赖缺失或版本不符。请先运行 stop.cmd，再双击 scripts/修复核心依赖.cmd，完成后重新启动。");
   const c = normalize(json(setupFile)),
     env = buildEnvironment(c),
     dshEntry = path.join(c.dshInstall, "lib/bin.js");
+  for(const target of [local,path.join(CORE,"state"),path.join(CORE,"config.json")])if(!secureStatePath(target,{skipLinks:target===local}).ok)throw Error("私人数据权限核验失败，未启动任何服务。");
   const owned = registry();
   for (const [id, port] of [
     ["dsh", c.dshPort],
@@ -625,19 +642,22 @@ export async function repairCore({install = () => npm(["ci","--ignore-scripts"],
 }
 export async function doctor() {
   const c = exists(setupFile) ? json(setupFile) : null;
+  const services=c?{dsh:await portOpen(c.dshPort),feiyu:await portOpen(c.consolePort),voiceGateway:await portOpen(c.companionPort)}:{};
+  const ownership={dsh:false,feiyu:false};
+  try{for(const id of Object.keys(ownership)){const record=registry().find(p=>p.id===id),current=record&&processIdentity(record.pid);ownership[id]=!!current&&identityHash(current)===record.identityHash;}}catch{}
+  let applicationReady=false;
+  if(c&&ownership.dsh&&ownership.feiyu&&Object.values(services).every(Boolean))try{const r=await fetch('http://127.0.0.1:'+c.consolePort+'/health/ready',{redirect:'error',signal:AbortSignal.timeout(3000)});applicationReady=r.ok&&(await r.json()).ready===true;}catch{}
+  let voiceHealth=null;if(c?.voice){const {inspectVoiceRuntime}=await import('../portable/voice-runtime/index.mjs');voiceHealth=await inspectVoiceRuntime({repoRoot:REPO,voice:true,verifyHashes:false});}
+  const dependencies=coreDependenciesReady(),voiceReady=!c?.voice||voiceHealth?.ready===true,healthy=!!c&&dependencies&&voiceReady&&Object.values(services).every(Boolean)&&Object.values(ownership).every(Boolean)&&applicationReady;
   return {
-    ok: !!c,
+    ok: healthy, healthy, degraded:!!c&&!healthy,
     node: process.version,
     configured: !!c,
-    coreDependencies: coreDependenciesReady(),
-    services: c
-      ? {
-          dsh: await portOpen(c.dshPort),
-          feiyu: await portOpen(c.consolePort),
-          voiceGateway: await portOpen(c.companionPort),
-        }
-      : {},
-    voiceRuntime: exists(pythonPath()),
+    coreDependencies: dependencies,
+    services,
+    ownership,
+    applicationReady,
+    voiceRuntime: c?.voice?{ready:voiceReady,status:voiceHealth?.status||'not-ready',runtimeReady:voiceHealth?.runtimeReady===true,modelReady:voiceHealth?.cacheReady===true}: {selected:false},
     profile: c?.profile || null,
     privateDataIncluded: false,
     qq: await checkQq(),
@@ -729,6 +749,8 @@ export async function main(argv = process.argv.slice(2)) {
   if (!["launch", "start"].includes(action))
     throw Error("使用 launch|setup|start|stop|doctor|plan|qq|qq-check|repair-core|uninstall");
   if (!exists(setupFile)) {
+    if (exists(path.join(CORE, 'config.json')))
+      throw Error('发现已有配置，但缺少 .local/installation.json 安装记录。请恢复原目录的 .local，或用 setup --config=本机安装配置.json 显式修复；普通启动不会重新运行首次设置或覆盖角色数据。');
     const c = supplied || await wizard(); await install(c);
     if (c.qqWizard) await configureQq();
   }

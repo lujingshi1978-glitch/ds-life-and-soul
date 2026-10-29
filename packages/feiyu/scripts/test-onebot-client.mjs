@@ -2,7 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {WebSocketServer} from 'ws';
-import {SnowLumaWebSocketClient as Client,text,validateOneBotUrl} from '../src/onebot-client.js';
+import {SnowLumaWebSocketClient as Client,text,validateOneBotUrl,validateOneBotHttpUrl,configuredOneBotEnabled} from '../src/onebot-client.js';
+
+test('gateway upgrades preserve configured legacy opt-in while fresh and explicitly disabled gateways stay off',async t=>{
+  for(const settings of [undefined,{}, {accessToken:'fixture'}, {wsUrl:''},{wsUrl:'ws://127.0.0.1:3001',enabled:false},{wsUrl:'ws://127.0.0.1:3001',enabled:null}])assert.equal(configuredOneBotEnabled(settings),false);
+  const f=await fixture(t,(s,p)=>reply(s,p,{user_id:1}));
+  const legacy=f.make({enabled:configuredOneBotEnabled({wsUrl:f.url})});await legacy.connect();assert.deepEqual(await legacy.raw('get_login_info'),{user_id:1});
+  const disabled=f.make({enabled:configuredOneBotEnabled({wsUrl:f.url,enabled:false})});await disabled.connect();await assert.rejects(disabled.raw('get_login_info'),fails('ONEBOT_DISABLED'));assert.equal(disabled.connected,false);assert.equal(f.sockets.length,1);
+});
+
+test('HTTP gateway accepts only literal loopback origins without embedded credentials or paths',()=>{
+  const credentialed=new URL('http://127.0.0.1');credentialed.username='fixture';credentialed.password='fixture';
+  for(const value of ['http://example.com','http://localhost:3000',credentialed.href,'http://127.0.0.1/path','http://127.0.0.1/?token=x','http://127.0.0.1/#fragment','http://127.0.0.1\n'])assert.throws(()=>validateOneBotHttpUrl(value),/ONEBOT_HTTP_ENDPOINT/);
+  assert.equal(validateOneBotHttpUrl('http://127.0.0.1:3000/'),'http://127.0.0.1:3000');
+  assert.equal(validateOneBotHttpUrl('http://[::1]:3000'),'http://[::1]:3000');
+});
 
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(check){for(let i=0;i<200;i++){if(check())return;await wait(5);}assert.fail('fixture condition timed out');}

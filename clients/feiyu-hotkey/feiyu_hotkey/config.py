@@ -22,6 +22,14 @@ class Settings:
     hotkey: str = "Ctrl+Alt+Space"
     timeout_seconds: int = 180
     voice_playback: bool = True
+    caption_enabled: bool = True
+    caption_opacity: float = 0.86
+    caption_font_size: int = 18
+    caption_width: int = 640
+    caption_x: int | None = None
+    caption_y: int | None = None
+    caption_hold_seconds: int = 10
+    caption_click_through: bool = True
 
     def validate(self) -> Settings:
         try:
@@ -43,6 +51,18 @@ class Settings:
             raise ConfigError("凭据文件路径格式无效")
         if type(self.voice_playback) is not bool:
             raise ConfigError("语音播放设置格式无效")
+        for name in ("caption_enabled", "caption_click_through"):
+            if type(getattr(self,name)) is not bool:
+                raise ConfigError("字幕开关格式无效")
+        if type(self.caption_opacity) not in (int,float) or not 0.2 <= self.caption_opacity <= 1:
+            raise ConfigError("字幕不透明度须在20%至100%之间")
+        for name,low,high in (("caption_font_size",12,40),("caption_width",260,1800),("caption_hold_seconds",0,120)):
+            value=getattr(self,name)
+            if type(value) is not int or not low <= value <= high:
+                raise ConfigError("字幕尺寸或停留时间无效")
+        for value in (self.caption_x,self.caption_y):
+            if value is not None and (type(value) is not int or not -50000 <= value <= 50000):
+                raise ConfigError("字幕位置无效")
         return self
 
     @property

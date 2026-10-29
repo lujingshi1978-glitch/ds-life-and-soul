@@ -241,7 +241,7 @@ const retirePlan = {
     "importantBoundary": "These are frontend-request retirement lists only. Do not delete server routes, QQ session machinery, stored data, transport inbox, native dialogue, model admission or actual permission checks."
   }
 };
-const EXPECTED_AUTH_SHA256 = '86bfe7f29b95e338b15c7d20248e7a7643895890baa63f4788b679179668daf7';
+const EXPECTED_AUTH_SHA256 = '99e20c95c92062d0291b0c2dbcbae583c1eb21697ef6a494d172f10e5dd63b9b';
 const retiredIds = [...new Set([...retirePlan.retiredIdsExpectedAbsent, 'section-social-v2', 'section-reference'])];
 const scripts = html => [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)].map(match => ({ attrs: match[1], code: match[2] }));
 
@@ -354,10 +354,11 @@ await check('Actual navigation selects all ten pages; retired URL aliases only r
 await check('API authentication and role-version guards remain intact with the global runtime-tuning endpoint', async () => {
   const current = authBlock(code);
   const withoutRuntimeMapping = current.replace('|runtime-tuning(?:$|\\?)', '');
-  assert.equal(hash(withoutRuntimeMapping), EXPECTED_AUTH_SHA256, 'Only the reviewed runtime-tuning resource mapping may extend the authentication wrapper');
+  assert.equal(hash(withoutRuntimeMapping), EXPECTED_AUTH_SHA256, 'The reviewed wrapper includes same-role successful write receipts; authentication and stale-page rejection must remain intact');
   for (const key of ['x-console-token','x-role-context','activationEpoch','_writeVersions','[409,428]']) assert(current.includes(key));
   const calls=[];const c={profileId:'fixture-profile',activationEpoch:4,resource:'global:/api/runtime-tuning',revision:7};
-  const context=vm.createContext({Map,encodeURIComponent,decodeURIComponent,localStorage:{getItem:()=> 'fixture-console-token'},speakingStyleLoaded:{name:'fixture'},fetch:async(path,options)=>{calls.push({path,options});return {status:200,headers:{get:name=>name==='x-role-context'?encodeURIComponent(JSON.stringify(c)):null},json:async()=>({ok:true})};}});
+  const replies=[];let revision=7;
+  const context=vm.createContext({Map,encodeURIComponent,decodeURIComponent,localStorage:{getItem:()=> 'fixture-console-token'},speakingStyleLoaded:{name:'fixture'},fetch:async(path,options)=>{calls.push({path,options});const override=replies.shift(),receipt=override?.receipt||{...c,revision:options.method==='POST'?++revision:revision},ok=override?.ok??true;return {ok,status:ok?200:409,headers:{get:name=>name==='x-role-context'?encodeURIComponent(JSON.stringify(receipt)):null},json:async()=>({ok})};}});
   new vm.Script(current+'\nglobalThis.fixtureApi=api;globalThis.fixtureResource=writeResource;').runInContext(context);
   assert.equal(context.fixtureResource('/api/runtime-tuning',{}),'global:/api/runtime-tuning');
   assert.equal(context.fixtureResource('/api/roles/update',{name:'fixture'}),'card:fixture');
@@ -365,6 +366,10 @@ await check('API authentication and role-version guards remain intact with the g
   await context.fixtureApi('/api/runtime-tuning');await context.fixtureApi('/api/runtime-tuning','POST',{revision:7,values:{budget:{dailySoftLimitCny:10}}});
   assert.equal(calls[1].options.headers['x-console-token'],'fixture-console-token');
   assert.deepEqual(JSON.parse(decodeURIComponent(calls[1].options.headers['x-role-context'])),c);
+  await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(JSON.parse(decodeURIComponent(calls[2].options.headers['x-role-context'])).revision,8);
+  replies.push({ok:false,receipt:{...c,revision:999}});await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(calls.length,4,'conflicts are never automatically resubmitted');
+  replies.push({ok:true,receipt:{...c,profileId:'another-role',revision:999}});await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(JSON.parse(decodeURIComponent(calls[4].options.headers['x-role-context'])).revision,9);
+  await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(JSON.parse(decodeURIComponent(calls[5].options.headers['x-role-context'])).revision,9,'foreign-role and failed receipts cannot advance this page');
   return { normalizedExistingGuardSha256: hash(withoutRuntimeMapping), runtimeResource:'global:/api/runtime-tuning' };
 });
 

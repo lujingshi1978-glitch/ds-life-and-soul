@@ -21,6 +21,8 @@
 | --- | --- |
 | 肥鱼核心 npm 依赖 | `packages/feiyu/package-lock.json`；完整版本和许可见第三方清单 |
 | 微信二维码 qrcode 1.5.4 | MIT；作为锁定核心依赖安装，其传递依赖许可见第三方清单；不随源码包复制node_modules |
+| 可选 OpenCLI 2.0.2 | Apache-2.0；依据 `templates/social-runtime/package-lock.json` 安装，保留上游依赖内 LICENSE；浏览器扩展需用户单独安装 |
+| 可选 Playwright MCP 0.0.83 | Apache-2.0；安装于隔离的浏览器运行目录；不随源码包复制浏览器或运行时 |
 | DSH 0.2.0-rc.2 及传递依赖 | `templates/dsh-runtime/package-lock.json`；610 个锁定条目，含平台可选项；详见 [DSH 依赖记录](licenses/dsh-runtime-dependencies.json) |
 | DSH 内的 LibreOffice Kit | MPL-2.0；相关适配和引擎另有随包 NOTICE。并非全部按肥鱼的 MIT 许可分发 |
 | DSH 内的 sharp / libvips 平台包 | Apache-2.0、LGPL-3.0-or-later 及相应组合许可，以实际安装包为准 |

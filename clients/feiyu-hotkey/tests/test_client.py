@@ -74,7 +74,11 @@ class Fixture:
                         raw += b"data: [DONE]\r\n\r\n"
                     self.send_response(200)
                     self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-                self.send_header("Content-Length", str(len(raw)))
+                if fixture.mode == "close":
+                    self.send_header("Connection", "close")
+                    self.close_connection = True
+                else:
+                    self.send_header("Content-Length", str(len(raw)))
                 self.end_headers()
                 self.wfile.write(raw)
                 self.wfile.flush()
@@ -149,6 +153,11 @@ class TransportTests(unittest.TestCase):
     def test_json_compatibility(self):
         _, deltas = self.call_fixture("json")
         self.assertEqual(deltas, ["完整回复"])
+
+    def test_close_delimited_sse_keeps_response_socket_alive(self):
+        fixture,deltas=self.call_fixture("close")
+        self.assertEqual(deltas,["你好","，同一个肥鱼"])
+        self.assertEqual(len(fixture.received),1)
 
     def test_http_failure_and_no_redirect_or_retry(self):
         for mode, expected in (("error", "休息"), ("redirect", "HTTP 302"), ("truncated", "提前结束")):

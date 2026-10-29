@@ -51,13 +51,14 @@ def main():
 
     window = VoiceOverlay(fixture.settings, Path(temporary.name) / "client.json", no_hotkey=True,
                           no_playback=True, controller=VoiceController(recorder=recorder))
-    window.show()
     started = time.perf_counter()
 
     def begin():
         window.toggle_voice()
+        assert not window.isVisible(), "voice hotkey must not show the chat window"
+        assert window.caption.isVisible(), "recording status must be visible as a small caption"
         report["recording_status"] = window.status.text()
-        window.grab().save(str(args.output / "voice-recording.png"))
+        window.caption.grab().save(str(args.output / "voice-recording.png"))
         window.toggle_voice()
         QTimer.singleShot(80, observe)
 
@@ -71,6 +72,10 @@ def main():
             assert "夹具识别文字" in window.output.toPlainText()
             assert "你好，同一个肥鱼" in window.output.toPlainText()
             assert window.send_button.isEnabled()
+            assert not window.isVisible()
+            assert "你好，同一个肥鱼" in window.caption.label.text()
+            report["voice_does_not_raise_chat_window"] = True
+            window.caption.grab().save(str(args.output / "reply-caption.png"))
             report["same_backend_voice_chain"] = [row[0] for row in fixture.received]
             report["reply_rendered"] = True
             report["translucent_widget"] = window.testAttribute(__import__("PySide6.QtCore", fromlist=["Qt"]).Qt.WidgetAttribute.WA_TranslucentBackground)

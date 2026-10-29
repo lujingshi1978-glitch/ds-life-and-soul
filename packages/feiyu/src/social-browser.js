@@ -3,6 +3,8 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {collectXhsNoteImages} from './xhs-note-images.js';
+import {openCliEntry} from './portable-paths.js';
+import {secureStatePath} from './strict-state-acl.mjs';
 
 export const SOCIAL_ORIGINS={zhihu:'https://www.zhihu.com',youtube:'https://www.youtube.com',xiaohongshu:'https://www.xiaohongshu.com',weibo:'https://weibo.com',tieba:'https://tieba.baidu.com',douyin:'https://www.douyin.com'};
 export function socialTarget(platform,input){
@@ -120,15 +122,16 @@ export class SocialBrowser{
    return frames;
   }finally{signal?.removeEventListener('abort',stop);await page.close().catch(()=>{});}
  }
- constructor({root,profileDir}){this.runtime=path.resolve(root,'../../work/integration-runtime/social');this.profileDir=path.join(profileDir,'social-browser');this.extension=path.join(this.runtime,'opencli-extension');this.playwrightPath=path.resolve(root,'../../work/integration-runtime/browser/node_modules/playwright/index.mjs');this.context=null;this.headed=false;}
- async executablePath(){const {chromium}=await import(pathToFileURL(this.playwrightPath).href);const expected=chromium.executablePath();if(fs.existsSync(expected))return expected;const cache=path.join(process.env.LOCALAPPDATA||'', 'ms-playwright'),candidates=fs.existsSync(cache)?fs.readdirSync(cache).filter(n=>/^chromium-\d+$/.test(n)).sort((a,b)=>Number(b.split('-')[1])-Number(a.split('-')[1])).map(n=>path.join(cache,n,'chrome-win64/chrome.exe')):[];const found=candidates.find(p=>fs.existsSync(p));if(!found)throw Error('专用Chromium未安装');return found;}
+ constructor({root,profileDir}){this.runtime=path.resolve(root,'../../work/integration-runtime/social');this.profileDir=path.join(profileDir,'social-browser');fs.mkdirSync(this.profileDir,{recursive:true});if(!secureStatePath(this.profileDir,{skipLinks:true}).ok)throw Error('PRIVATE_BROWSER_ACL_REQUIRED');this.extension=path.join(this.runtime,'opencli-extension');this.playwrightPath=path.resolve(root,'../../work/integration-runtime/browser/node_modules/playwright/index.mjs');this.context=null;this.headed=false;}
+ async executablePath(){const {chromium}=await import(pathToFileURL(this.playwrightPath).href);const expected=chromium.executablePath();if(fs.existsSync(expected))return expected;const cache=path.join(process.env.LOCALAPPDATA||'', 'ms-playwright'),candidates=fs.existsSync(cache)?fs.readdirSync(cache).filter(n=>/^chromium-\d+$/.test(n)).sort((a,b)=>Number(b.split('-')[1])-Number(a.split('-')[1])).map(n=>path.join(cache,n,'chrome-win64/chrome.exe')):[];const found=candidates.find(p=>fs.existsSync(p));if(found)return found;const edge=[process.env['ProgramFiles(x86)'],process.env.ProgramFiles,process.env.LOCALAPPDATA].filter(Boolean).map(d=>path.join(d,'Microsoft/Edge/Application/msedge.exe')).find(p=>fs.existsSync(p));if(!edge)throw Error('未找到可用的Chromium或Edge，请安装浏览器读取组件');return edge;}
  async open({headed=false}={}){
   if(this.context&&this.headed===headed)return this.context;if(this.opening)return this.opening;
   this.opening=(async()=>{await this.close();const {chromium}=await import(pathToFileURL(this.playwrightPath).href);fs.mkdirSync(this.profileDir,{recursive:true});
    const executablePath=await this.executablePath();
-   this.context=await chromium.launchPersistentContext(this.profileDir,{executablePath,headless:!headed,args:['--disable-extensions-except='+this.extension,'--load-extension='+this.extension],acceptDownloads:false,viewport:{width:1200,height:850}});this.headed=headed;
+   this.context=await chromium.launchPersistentContext(this.profileDir,{executablePath,headless:!headed,args:this.requiresExtension===false?[]:['--disable-extensions-except='+this.extension,'--load-extension='+this.extension],acceptDownloads:false,viewport:{width:1200,height:850}});this.headed=headed;
    this.context.on('close',()=>{this.context=null;this.contextId=null;});
    // Route OpenCLI to this role's extension instance, never whichever personal profile is connected.
+   if(this.requiresExtension===false){this.contextId=this.externalProfile;return this.context;}
    let worker=this.context.serviceWorkers().find(w=>w.url().startsWith('chrome-extension://'));
    if(!worker)worker=await this.context.waitForEvent('serviceworker',{timeout:15000});
    for(let i=0;i<30;i++){this.contextId=await worker.evaluate(async()=> (await chrome.storage.local.get('opencli_context_id_v1')).opencli_context_id_v1);if(this.contextId)break;await new Promise(r=>setTimeout(r,150));}
@@ -143,8 +146,8 @@ export class SocialBrowser{
 
 // Current-console login: OpenCLI owns the browser connection; no personal profile files are read.
 export class ConsoleSocialBrowser extends SocialBrowser {
- constructor(options){super(options);this.bindingFile=path.join(options.profileDir,'social','console-browser.json');this.consolePort=options.consolePort||3100;this.request=options.request||this.daemonRequest.bind(this);this.externalProfile=null;try{this.externalProfile=JSON.parse(fs.readFileSync(this.bindingFile,'utf8')).contextId;}catch{}}
- async daemonRequest(endpoint,body,retried=false){try{const r=await fetch('http://127.0.0.1:19825'+endpoint,{method:body?'POST':'GET',headers:{'X-OpenCLI':'1','content-type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error();return await r.json();}catch{if(endpoint==='/status'&&!retried){const entry=path.join(this.runtime,'node_modules/@jackwener/opencli/dist/src/daemon.js');if(fs.existsSync(entry)){const child=spawn(process.execPath,[entry],{cwd:this.runtime,windowsHide:true,detached:true,stdio:'ignore'});child.on('error',()=>{});child.unref();await new Promise(r=>setTimeout(r,1000));return this.daemonRequest(endpoint,body,true);}}throw Object.assign(Error('当前浏览器未连接 OpenCLI 扩展，请安装后点击完成登录'),{code:'BROWSER_EXTENSION_REQUIRED'});}}
+ constructor(options){super(options);this.bindingFile=path.join(options.profileDir,'social','console-browser.json');this.requiresExtension=false;this.consolePort=options.consolePort||3100;this.request=options.request||this.daemonRequest.bind(this);this.externalProfile=null;try{this.externalProfile=JSON.parse(fs.readFileSync(this.bindingFile,'utf8')).contextId;}catch{}}
+ async daemonRequest(endpoint,body,retried=false){try{const r=await fetch('http://127.0.0.1:19825'+endpoint,{method:body?'POST':'GET',headers:{'X-OpenCLI':'1','content-type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error();return await r.json();}catch{if(endpoint==='/status'&&!retried){const entry=openCliEntry(this.root,true);if(fs.existsSync(entry)){const child=spawn(process.execPath,[entry],{cwd:this.runtime,windowsHide:true,detached:true,stdio:'ignore'});child.on('error',()=>{});child.unref();await new Promise(r=>setTimeout(r,1000));return this.daemonRequest(endpoint,body,true);}}throw Object.assign(Error('当前浏览器未连接 OpenCLI 扩展，请安装后点击完成登录'),{code:'BROWSER_EXTENSION_REQUIRED'});}}
  async command(contextId,action,args={}){const result=await this.request('/command',{id:'feiyu_'+Date.now()+'_'+Math.random().toString(16).slice(2),contextId,action,...(action==='cookies'?{session:'feiyu-login-state',surface:'browser'}:{}),...args});if(!result.ok)throw Object.assign(Error('当前浏览器扩展请求失败，请重新检查连接'),{code:'BROWSER_EXTENSION_REQUIRED'});return result.data;}
  async consoleProfile({bind=false}={}){
   const status=await this.request('/status'),profiles=(status.profiles||[]).filter(p=>p.extensionConnected!==false);let matches=[];

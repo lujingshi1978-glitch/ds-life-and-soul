@@ -111,6 +111,28 @@ export function inspectProfile(options) {
   return {ok:changed.length===0,installed:true,profile:journal.profile,bundles:journal.bundles,changed,restartRequired:true};
 }
 
+// Add optional bundles to an unchanged managed profile. The original uninstall
+// snapshot remains intact; a failed update restores the previous exact bytes.
+export function addOptionalBundles(options) {
+  const health=inspectProfile(options);
+  if(!health.ok)throw Error('Profile changed; optional update refused');
+  const locations=profilePaths(options),raw=read(locations.journal),journal=JSON.parse(raw);
+  const selected=selectedBundles(journal.bundleRoot,options.optional||[]).filter(b=>!journal.bundles.includes(b.name));
+  if(!selected.length)return {ok:true,changed:false};
+  const before={manifest:read(locations.manifest),patch:read(locations.patch)},pkg=JSON.parse(before.manifest),patches=yaml.load(before.patch),created=[];
+  const lock=path.join(locations.dir,'.feiyu-life-install.lock');fs.writeFileSync(lock,String(process.pid),{flag:'wx'});
+  try {
+    if(read(locations.journal)!==raw||read(locations.manifest)!==before.manifest||read(locations.patch)!==before.patch)throw Error('Profile changed during update');
+    for(const b of selected){const link=path.join(locations.dir,'node_modules',b.name);if(fs.lstatSync(link,{throwIfNoEntry:false})||Object.hasOwn(pkg.dependencies,b.name))throw Error('Optional bundle conflict');const entry={link,target:fs.realpathSync(b.directory)};fs.symlinkSync(entry.target,link,process.platform==='win32'?'junction':'dir');created.push(entry);pkg.dependencies[b.name]='link:'+b.directory.replaceAll('\\','/');pkg.dsh.profile.bundles.push(b.name);}
+    if(selected.some(b=>b.name==='dsh-bili-scroll'))patches.push({id:'bili-scroll',config:{enabled:false,peakValley:false,autoComment:false,dmMode:'off',dmUid:0,replyToComments:false}});
+    journal.links.push(...created);journal.bundles.push(...selected.map(b=>b.name));journal.optional=[...new Set([...(journal.optional||[]),...(options.optional||[])])];
+    journal.after={manifest:serialize(pkg),patch:serialize(patches)};journal.hashes={manifest:digest(journal.after.manifest),patch:digest(journal.after.patch)};
+    atomic(locations.manifest,journal.after.manifest);atomic(locations.patch,journal.after.patch);atomic(locations.journal,serialize(journal));
+    return {ok:true,changed:true,restartRequired:true};
+  } catch(error){for(const key of ['manifest','patch'])if(journal.after[key]!==before[key]&&read(locations[key])===journal.after[key])atomic(locations[key],before[key]);if(read(locations.journal)===serialize(journal))atomic(locations.journal,raw);for(const entry of created)if(fs.lstatSync(entry.link,{throwIfNoEntry:false})?.isSymbolicLink()&&samePath(fs.realpathSync(entry.link),entry.target))fs.unlinkSync(entry.link);throw error;}
+  finally{fs.unlinkSync(lock);}
+}
+
 export function uninstallProfile(options) {
   const p=profilePaths(options), health=inspectProfile(options);
   if(!health.installed)return {ok:true,removed:false};
