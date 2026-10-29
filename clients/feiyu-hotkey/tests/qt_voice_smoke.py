@@ -54,19 +54,27 @@ def main():
     started = time.perf_counter()
 
     def begin():
-        window.toggle_voice()
-        assert not window.isVisible(), "voice hotkey must not show the chat window"
-        assert window.caption.isVisible(), "recording status must be visible as a small caption"
-        report["recording_status"] = window.status.text()
-        window.caption.grab().save(str(args.output / "voice-recording.png"))
-        window.toggle_voice()
-        QTimer.singleShot(80, observe)
+        try:
+            window.toggle_voice()
+            assert not window.isVisible(), "voice hotkey must not show the chat window"
+            assert window.caption.isVisible(), "recording status must be visible as a small caption"
+            report["recording_status"] = window.status.text()
+            window.caption.grab().save(str(args.output / "voice-recording.png"))
+            window.toggle_voice()
+            QTimer.singleShot(80, observe)
+        except Exception as error:  # noqa: BLE001 - preserve GUI callback failures
+            errors.append(type(error).__name__ + ": " + str(error))
+            finish()
 
     def observe():
         try:
             if time.perf_counter() - started > 20:
                 raise AssertionError("voice fixture did not finish")
-            if window.controller.active_id is not None:
+            assert not window.isVisible(), "voice interaction must keep the chat window hidden"
+            # The worker can finish before Qt's next event-queue poll paints
+            # its result. Wait for the user-visible completion, bounded above.
+            if (window.controller.active_id is not None or not window.send_button.isEnabled()
+                    or "你好，同一个肥鱼" not in window.output.toPlainText()):
                 QTimer.singleShot(80, observe)
                 return
             assert "夹具识别文字" in window.output.toPlainText()
@@ -106,7 +114,9 @@ def main():
     report["errors"] = errors
     report["normal_exit"] = True
     (args.output / "qt-voice-smoke.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(report, ensure_ascii=False))
+    # Windows CI may have a CP1252 stdout. Keep the report file UTF-8 and the
+    # machine-readable console JSON safe under any terminal encoding.
+    print(json.dumps(report, ensure_ascii=True))
     if errors:
         raise SystemExit(1)
 
