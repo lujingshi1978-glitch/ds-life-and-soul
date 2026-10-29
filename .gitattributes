@@ -5,3 +5,5 @@
 *.pptx binary
 *.pdf binary
 *.node binary
+# License hashes record exact upstream bytes, including original line endings.
+LICENSE -text

@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { deflateSync } from 'node:zlib';
+import {createHash} from 'node:crypto';
 import { auditPublicPackage, enumeratePublicFiles, classifyPublicPath, scanPublicText } from '../scripts/check-public-package.mjs';
 
 function fixture(t) {
@@ -146,6 +147,19 @@ test('a fixed working tree cannot approve stale private bytes still staged for p
   assert.deepEqual(result.issues, [{ rule: 'git-index-worktree-mismatch', path: 'README.md', line: 1 }]);
   execFileSync('git', ['-C', root, 'add', '--', 'README.md'], { stdio: 'ignore' });
   assert.equal(auditPublicPackage(root, { requireLicenses: false, privateIdentifiers: ['fixture-private-identity-staged'] }).ok, true);
+});
+
+test('Git text normalization cannot silently invalidate a pinned license after publication',t=>{
+  const {root,put}=fixture(t),hash=b=>createHash('sha256').update(b).digest('hex');
+  try{execFileSync('git',['--version'],{stdio:'ignore'});}catch{t.skip('Git is not installed');return;}
+  const license=Buffer.from('MIT synthetic fixture\r\n'),lock=Buffer.from('{}\n');
+  put('LICENSE',license);put('package-lock.json',lock);put('.gitattributes','* text eol=lf\n');
+  put('licenses/native-artifacts.json',JSON.stringify({artifacts:[]}));
+  put('licenses/third-party-manifest.json',JSON.stringify({schemaVersion:1,copied:[{name:'synthetic',license:'MIT',licenseFiles:[{path:'LICENSE',sha256:hash(license)}]}],npm:{lockFile:'package-lock.json',lockSha256:hash(lock)}}));
+  execFileSync('git',['init','-q',root],{stdio:'ignore'});execFileSync('git',['-C',root,'add','--all'],{stdio:'ignore'});
+  assert.ok(auditPublicPackage(root).issues.some(x=>x.rule==='git-pinned-byte-mismatch'&&x.path==='LICENSE'));
+  put('.gitattributes','* text eol=lf\nLICENSE -text\n');execFileSync('git',['-C',root,'add','--renormalize','.'],{stdio:'ignore'});
+  assert.equal(auditPublicPackage(root).issues.some(x=>x.rule==='git-pinned-byte-mismatch'),false);
 });
 
 function storedOfficeDocument(name, xml) {

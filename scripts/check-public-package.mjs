@@ -170,7 +170,7 @@ function sourceText(buffer) {
 
 export function auditPublicPackage(root = PUBLIC_ROOT, { requireLicenses = true, inspectGit = true, privateIdentifiers = [] } = {}) {
   validatePrivateIdentifiers(privateIdentifiers);
-  const enumeration = enumeratePublicFiles(root), issues = [...enumeration.issues], native = [];
+  const enumeration = enumeratePublicFiles(root), issues = [...enumeration.issues], native = [], pinnedBytes = new Set();
   for (const relative of enumeration.files) {
     const buffer = fs.readFileSync(path.join(root, relative)), extension = path.extname(relative).toLowerCase();
     try {
@@ -202,6 +202,7 @@ export function auditPublicPackage(root = PUBLIC_ROOT, { requireLicenses = true,
           const entry = manifest.artifacts?.find(value => value.binary === relative);
           if (!entry || entry.license !== 'MIT' || !entry.build || !entry.source || !entry.licenseFile) { issues.push(issue('native-provenance-missing', relative)); continue; }
           for (const [file, expected] of [[entry.binary, entry.sha256], [entry.source, entry.sourceSha256], [entry.licenseFile, entry.licenseSha256]]) {
+            pinnedBytes.add(file);
             if (!enumeration.files.includes(file) || !/^[a-f0-9]{64}$/.test(expected || '') || sha(fs.readFileSync(path.join(root, file))) !== expected) issues.push(issue('native-provenance-hash', relative));
           }
         }
@@ -214,8 +215,9 @@ export function auditPublicPackage(root = PUBLIC_ROOT, { requireLicenses = true,
         if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.copied) || !manifest.copied.length) throw Error('Invalid license records');
         for (const entry of manifest.copied) {
           if (!entry.license || !entry.licenseFiles?.length) throw Error('Missing license record');
-          for (const record of entry.licenseFiles) if (!enumeration.files.includes(record.path) || sha(fs.readFileSync(path.join(root, record.path))) !== record.sha256) issues.push(issue('third-party-license-hash', thirdPartyPath));
+          for (const record of entry.licenseFiles) { pinnedBytes.add(record.path); if (!enumeration.files.includes(record.path) || sha(fs.readFileSync(path.join(root, record.path))) !== record.sha256) issues.push(issue('third-party-license-hash', thirdPartyPath)); }
         }
+        pinnedBytes.add(manifest.npm?.lockFile);
         if (!enumeration.files.includes(manifest.npm?.lockFile) || sha(fs.readFileSync(path.join(root, manifest.npm.lockFile))) !== manifest.npm.lockSha256) issues.push(issue('third-party-lock-hash', thirdPartyPath));
       } catch { issues.push(issue('third-party-manifest-invalid', thirdPartyPath)); }
     }
@@ -229,6 +231,12 @@ export function auditPublicPackage(root = PUBLIC_ROOT, { requireLicenses = true,
       // Otherwise an old staged blob could retain a value already removed here.
       const changed = execFileSync('git', ['-C', root, 'diff', '--name-only', '--no-ext-diff', '-z', '--'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\0').filter(Boolean);
       for (const relative of changed) issues.push(issue('git-index-worktree-mismatch', relative));
+      // Text filters can hide a CRLF/LF difference from `git diff`, yet the
+      // checkout bytes must still match the declared provenance hashes.
+      for (const relative of pinnedBytes) if (included.has(relative)) {
+        const staged = execFileSync('git', ['-C', root, 'show', ':' + relative], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024 });
+        if (!staged.equals(fs.readFileSync(path.join(root, relative)))) issues.push(issue('git-pinned-byte-mismatch', relative));
+      }
     } catch { issues.push(issue('git-index-unreadable', '.git')); }
   }
   const deduplicated = [...new Map(issues.map(value => [`${value.rule}:${value.path}:${value.line}`, value])).values()].sort((a, b) => a.path.localeCompare(b.path, 'en') || a.line - b.line || a.rule.localeCompare(b.rule));
