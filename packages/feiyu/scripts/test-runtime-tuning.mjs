@@ -39,7 +39,7 @@ test('each exposed parameter has a real source consumer outside the schema',()=>
 test('model input and output budgets change the actual adapter, without clipping JSON',async()=>{
  let settings=defaultRuntimeTuning(),calls=0;const model=new CognitiveModel(async()=>{calls++;return {data:{text:'x'.repeat(1800)},receipt:{disposed:true,transcriptPersisted:false}};},{runtimeTuning:()=>settings});
  settings=mergeRuntimeTuning(settings,{text:{thoughtInputChars:2000,thoughtOutputChars:1000}});
- await assert.rejects(()=>model.run('fixture','fixture',{text:'x'.repeat(2500)}),e=>e.code==='PAYLOAD_TOO_LARGE');assert.equal(calls,0);
+ await assert.rejects(()=>model.run('fixture','fixture',{text:'x'.repeat(2500)}),e=>e.code==='COGNITIVE_INPUT_TOO_LARGE'&&e.details.limitChars===2000&&e.details.inputChars>2000);assert.equal(calls,0);
  await assert.rejects(()=>model.run('fixture','fixture',{text:'ok'}),e=>e.code==='PAYLOAD_TOO_LARGE');assert.equal(calls,1);
  settings=mergeRuntimeTuning(settings,{text:{thoughtInputChars:6000,thoughtOutputChars:4000}});assert.equal((await model.run('fixture','fixture',{text:'x'.repeat(2500)})).text.length,1800);
 });

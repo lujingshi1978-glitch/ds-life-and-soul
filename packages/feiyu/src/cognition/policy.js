@@ -6,6 +6,7 @@ import {updateCoreLineage} from './core-lineage.js';
 import {energyExempt,energyContext} from '../energy-context.js';
 import {assertSubjectiveCommit} from './subjective-commit.js';
 import {tuningFor} from '../runtime-tuning.js';
+import {reviewInputs,enqueueSelfReview,applySelfUnderstanding,selfModelProjection,seedSelfModelSummary,finishSelfReview} from './self-model.js';
 
 const count=s=>[...s].length;
 export function editSize(a,b){let start=0;const aa=[...a],bb=[...b];while(start<Math.min(aa.length,bb.length)&&aa[start]===bb[start])start++;let end=0;while(end<Math.min(aa.length,bb.length)-start&&aa.at(-1-end)===bb.at(-1-end))end++;return Math.max(aa.length-start-end,bb.length-start-end);}
@@ -52,7 +53,9 @@ export class CharacterPolicy {
     const next=[...items.filter(i=>i.name!==name),item].slice(-100);s.setProjection('interests','self',{items:next},{dependencies:next.flatMap(i=>i.evidence)});return {affected:evidence,item};
   });}
   decayInterests(){if(this.store.inner)return {retired:true,reason:'时间影响可访问程度，不按天数删除或改写兴趣'};const s=this.store;return s.atomic('interests-decayed',()=>{const old=this.interests(),items=old.filter(i=>i.anchored||s.now()-i.lastSeen<90*86400000).map(i=>i.anchored?i:{...i,level:s.now()-i.lastSeen>30*86400000?'淡忘':i.level});s.setProjection('interests','self',{items},{dependencies:items.flatMap(i=>i.evidence)});return {before:old,after:items,affected:items.flatMap(i=>i.evidence)};});}
-  registerGrowth(memoryId){const s=this.store,m=s.get(memoryId);if(!m||m.kind!=='experience'||m.metadata.derived) return null;
+  registerGrowth(memoryId){const s=this.store,m=s.get(memoryId);
+    if(s.inner){const input=reviewInputs(s,{memoryIds:[memoryId]});if(!input.memories.length)return null;const apply=()=>({...enqueueSelfReview(s,input),affected:[memoryId]});return s.db.isTransaction?apply():s.atomic('self-understanding-review-scheduled',apply);}
+    if(!m||m.kind!=='experience'||m.metadata.derived) return null;
     const impact=Math.round(100*unit(m.metadata.intensity)*unit(m.metadata.lastingness)*m.confidence),roots=[...new Set(m.metadata.roots||[m.event_root])].filter(Boolean);
     // Summaries/abstracts cannot create fresh independent evidence or multiply an event's impact.
     return s.atomic('growth-evidence-recorded',()=>{for(const root of roots){const old=s.db.prepare('SELECT * FROM v2_growth_events WHERE event_root=?').get(root);if(!old||old.impact<impact)s.db.prepare('INSERT OR REPLACE INTO v2_growth_events VALUES(?,?,?,?)').run(root,impact,s.now(),json([memoryId]));}
@@ -63,6 +66,7 @@ export class CharacterPolicy {
   unusedGrowth(field){return this.store.db.prepare('SELECT * FROM v2_growth_events e WHERE NOT EXISTS(SELECT 1 FROM v2_growth_uses u WHERE u.field=? AND u.event_root=e.event_root)').all(field).filter(r=>parse(r.evidence).some(id=>this.store.get(id)?.kind==='experience'));}
   growthSnapshot(field,roots){const core=this.core().find(c=>c.field===field);if(!core||core.locked)fail('CORE_FIELD_LOCKED');const allowed=this.unusedGrowth(field).filter(r=>roots.includes(r.event_root));const score=allowed.reduce((n,r)=>n+r.impact,0);return {core,score,events:allowed,evidence:[...new Set(allowed.flatMap(r=>parse(r.evidence)))].map(id=>this.store.get(id)).filter(Boolean)};}
   applyGrowth({field,expectedRevision,text,roots,verified=false,expectedEvidence},{job}={}){const s=this.store;const apply=()=>{
+    if(s.inner)fail('SELF_UNDERSTANDING_REVIEW_REQUIRED');
     const innerCommit=assertSubjectiveCommit(s);
     if(job)s.assertJob(job);const snap=this.growthSnapshot(field,roots),old=snap.core;if(old.revision!==expectedRevision)fail('CORE_VERSION_CONFLICT');if(snap.score<60)fail('GROWTH_THRESHOLD_NOT_MET');if(!verified)fail('GROWTH_SEMANTIC_VERIFICATION_REQUIRED');
     if(expectedEvidence?.some(ref=>s.get(ref.id)?.revision!==ref.revision))fail('MEMORY_VERSION_CONFLICT');
@@ -76,6 +80,14 @@ export class CharacterPolicy {
     const binding=innerCommit?{innerCommit:innerCommit.commitId,generation:innerCommit.generation}:{};
     if(job)s.finish(job,{kind:'growth',field,before:old.body,after:text,edit,evidence,score:snap.score,...binding});return {field,before:old.body,after:text,edit,affected:evidence,...binding};
   };return s.db.isTransaction?apply():s.atomic('core-growth-applied',apply);}
+  applySelfUnderstanding({field,expectedRevision,ops,memoryIds,eventIds,key,verified=false,expectedEvidence=[]},{job}={}){
+    const s=this.store;assertSubjectiveCommit(s);if(job)s.assertJob(job);const old=this.core().find(c=>c.field===field);if(!old||old.locked)fail('CORE_FIELD_LOCKED');if(old.revision!==expectedRevision)fail('CORE_VERSION_CONFLICT');if(!verified)fail('GROWTH_SEMANTIC_VERIFICATION_REQUIRED');
+    if(expectedEvidence.some(ref=>s.get(ref.id)?.revision!==ref.revision))fail('MEMORY_VERSION_CONFLICT');
+    const maxChars=10000-this.core().filter(c=>c.field!==field).reduce((n,c)=>n+count(c.body),0);if(maxChars<0)fail('CORE_BUDGET_EXCEEDED');seedSelfModelSummary(s,old);const ids=applySelfUnderstanding(s,ops,{memoryIds,eventIds,key,field}),projection=selfModelProjection(s,{field,fallback:old.body,maxChars}),text=projection.text;bounded(text,10000,{empty:true});
+    const edit=editSize(old.body,text);if(this.core().reduce((n,c)=>n+count(c.field===field?text:c.body),0)>10000)fail('CORE_BUDGET_EXCEEDED');
+    if(edit){const evidence=updateCoreLineage(s,field,old.revision,old.body,text,ids);s.db.prepare('UPDATE v2_core SET body=?,revision=revision+1,evidence=? WHERE field=?').run(text,json(evidence),field);s.db.prepare('INSERT INTO v2_core_versions VALUES(?,?,?,?,?)').run(field,old.revision+1,text,json(evidence),s.now());s.db.prepare('INSERT INTO v2_growth_changes VALUES(?,?,?,?)').run(randomUUID(),s.now(),field,edit);}
+    return finishSelfReview(s,job,{status:'applied',before:old.body,after:text,summaryChanged:edit>0,summaryProjection:projection,edit,selfUnderstandingIds:ids,affected:ids});
+  }
 }
 
 function clipInterest(value){return [...String(value||'')].slice(0,300).join('');}

@@ -1,6 +1,7 @@
 import {hash,clip,terms} from './contracts.js';
 import {memoryLearningEligible} from '../operational-material.js';
 import {memoryEvidenceOrigin} from './evidence-origin.js';
+import {selfUnderstandingModelView} from './model-view.js';
 import {tuningFor} from '../runtime-tuning.js';
 
 export const PREFERENCE_MEMORY_HINT='【兴趣、经历与念头分开】interest只保留自己被什么吸引或排斥、吸引点与顾虑、认识范围及尚不知道的部分。它是有来源、可修正的偏好，不是活动流水账。第一次真实触动也可形成小范围、暂定的好奇，不按次数或天数升级。读前瞻、听别人介绍与亲自尝试分清；看视频不能记成自己玩过。只有形成新偏好或吸引点、保留意见真的变化时才提交interest；再次提及、分享出去、对方回应开心、现在想做什么，都不自动改变兴趣。具体经历保存在已有原始观察/experience记忆；愿意分享写changes中的motive（motiveKind=share，给真实来源和相关人物），没有必要可不写。偏好与经历、人物、念头通过记忆ID及来源关联，不能互相冒充。before/recalled里出现过某兴趣不要求本轮续聊；当前话题改变时先接当前内容。';
@@ -13,10 +14,11 @@ export function currentTopicCue(text=''){
  return {query:s.slice(0,800),changed:false,usesRecent:elliptical};
 }
 
-export function contextualMemoryView(runtime,m,{chars=220}={}){
+export function contextualMemoryView(runtime,m,{chars=220,expressionScope,person,query=''}={}){
+ if((expressionScope||person)&&!selfUnderstandingApplies(m,{expressionScope,person,query}))return null;
  chars=Math.min(chars,tuningFor(runtime).text.memoryGistChars);
  const d=m.metadata?.disposition;
- return {id:m.id,revision:m.revision,gist:clip(m.gist,chars),kind:m.kind,people:m.participants.map(p=>p.entity_id),epistemic:m.epistemic,occurredAt:m.occurred_at,evidenceOrigin:memoryEvidenceOrigin(m,{archive:runtime.archive,characterId:runtime.characterId}),...(m.metadata?.expressionFeedback?{expressionFeedback:{...m.metadata.expressionFeedback,referenceOnly:true,notGlobalInstruction:m.metadata.expressionFeedback.target!=='self'}}:{}),...(d?{subjectId:runtime.characterId,disposition:{kind:d.kind,target:d.target,facet:d.facet,...(d.preference?{preference:d.preference}:{})},interpretation:'subjective-memory-not-current-task-or-person-fact'}:{})};
+ return {id:m.id,revision:m.revision,gist:clip(m.gist,chars),kind:m.kind,people:m.participants.map(p=>p.entity_id),epistemic:m.epistemic,occurredAt:m.occurred_at,evidenceOrigin:memoryEvidenceOrigin(m,{archive:runtime.archive,characterId:runtime.characterId}),...(m.metadata?.expressionFeedback?{expressionFeedback:{...m.metadata.expressionFeedback,referenceOnly:true,notGlobalInstruction:m.metadata.expressionFeedback.target!=='self'}}:{}),...(m.metadata?.selfUnderstanding?{selfUnderstanding:selfUnderstandingModelView(m.metadata.selfUnderstanding),interpretation:'scoped-subjective-self-understanding-not-current-task-or-person-rule'}:{}),...(d?{subjectId:runtime.characterId,disposition:{kind:d.kind,target:d.target,facet:d.facet,...(d.preference?{preference:d.preference}:{})},interpretation:'subjective-memory-not-current-task-or-person-fact'}:{})};
 }
 
 // An internally evoked memory remains a reference. It is neither a new event,
@@ -45,3 +47,16 @@ export function lexicalInterestRelevant(memory,query){
 }
 
 export function expressionFeedbackApplies(memory,scope){const target=memory?.metadata?.expressionFeedback?.target;return !target||target==='self'||target===scope;}
+
+// Internal association may inspect a local self-understanding as a reference.
+// Expression projections require its actual person/situation scope. Ordinary
+// cross-person episodes/interests are deliberately unaffected by this rule.
+export function selfUnderstandingApplies(memory,{expressionScope,person,query='',internalReference=false}={}){
+ const u=memory?.metadata?.selfUnderstanding;if(!u)return true;
+ if(internalReference||expressionScope==='self'&&!person)return true;
+ const scope=selfUnderstandingModelView(u)?.scope;if(!scope)return false;
+ const current=person||(/^private:\d+$/.test(expressionScope||'')?'qq:'+expressionScope.slice(8):/^(?:qq:|wechat:)/.test(expressionScope||'')?expressionScope:null);
+ if(scope.general)return scope.people.length===0;
+ if(scope.people.length)return !!current&&scope.people.includes(current);
+ const cues=new Set(terms(String(query)));return cues.size>0&&scope.situations.some(s=>terms(s).some(t=>cues.has(t)));
+}

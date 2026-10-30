@@ -5,6 +5,7 @@ import {assertSignal,fail,json,bounded,hash} from './contracts.js';
 const explicitBudgets=new AsyncLocalStorage();
 export const withCognitiveBudget=(budget,fn)=>explicitBudgets.run(budget,fn);
 export const hasExplicitCognitiveBudget=()=>!!explicitBudgets.getStore();
+export const cognitiveInputLimit=model=>model.runtimeTuning?tuningFor(model).text.thoughtInputChars:model.maxInputChars;
 
 // Caller injects a stateless model adapter; importing V2 never calls DSH/network.
 export class CognitiveModel {
@@ -15,7 +16,9 @@ export class CognitiveModel {
     const readSet=originalReadSet??this.captureReadSet?.(material);
     if(readSet)this.validateReadSet?.(readSet);
     const text=this.runtimeTuning?tuningFor(this).text:null;
-    const input=json(material,text?.thoughtInputChars??this.maxInputChars),abort=new AbortController(),timer=setTimeout(()=>abort.abort(new Error('MODEL_DEADLINE')),text?.modelTimeoutMs??this.timeoutMs);timer.unref?.();
+    const input=JSON.stringify(material),limit=cognitiveInputLimit(this);
+    if(!input||input.length>limit){const error=new Error('COGNITIVE_INPUT_TOO_LARGE');error.code='COGNITIVE_INPUT_TOO_LARGE';error.details={purpose,inputChars:input?.length||0,limitChars:limit,instructionChars:instructions.length};throw error;}
+    const abort=new AbortController(),timer=setTimeout(()=>abort.abort(new Error('MODEL_DEADLINE')),text?.modelTimeoutMs??this.timeoutMs);timer.unref?.();
     const budget=explicitBudgets.getStore()||this.budget;
     const reservation={reserved:true,budget,chargedChars:input.length+instructions.length};
     try{reservation.hour=budget?.reserve(purpose,reservation.chargedChars)?.hour;}catch(e){clearTimeout(timer);throw e;}
@@ -26,7 +29,7 @@ export class CognitiveModel {
       assertSignal(combined);
       if(result?.receipt?.disposed!==true||result?.receipt?.transcriptPersisted!==false)fail('MODEL_ISOLATION_UNVERIFIED');
       json(result.data,text?.thoughtOutputChars??this.maxOutputChars);
-      this.receipts.push({purpose,inputHash:reservation.inputHash||hash(input),inputChars:reservation.chargedChars,budgetHour:reservation.hour,outputChars:JSON.stringify(result.data).length,id:result.receipt.id||null,usage:result.receipt.usage||null,disposed:true,transcriptPersisted:false});
+      this.receipts.push({purpose,inputHash:reservation.inputHash||hash(input),inputChars:reservation.chargedChars,materialChars:input.length,instructionChars:instructions.length,materialLimitChars:limit,budgetHour:reservation.hour,outputChars:JSON.stringify(result.data).length,id:result.receipt.id||null,usage:result.receipt.usage||null,disposed:true,transcriptPersisted:false});
       this.onReceipt?.(this.receipts.at(-1));budget?.receipt?.(this.receipts.at(-1));
       if(this.receipts.length>100)this.receipts.shift();this.validateReadSet?.(readSet);return result.data;
     }catch(error){assertSignal(combined);if(error instanceof SyntaxError&&!formatRetried){this.validateReadSet?.(readSet);clearTimeout(timer);return this.run(purpose,instructions+'\n上一次未返回合法JSON。严格只输出要求的JSON对象，不能以角色台词、引号包裹的短句或自然语言回答。资料与证据不变。',JSON.parse(input),signal,{formatRetried:true,originalReadSet:readSet});}throw error;}finally{clearTimeout(timer);combined.removeEventListener('abort',onAbort);}

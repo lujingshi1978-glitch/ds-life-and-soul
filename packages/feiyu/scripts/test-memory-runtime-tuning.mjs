@@ -1,3 +1,4 @@
+import {createGrowthFixture,localModelReply} from './growth-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -43,12 +44,12 @@ test('a configured item limit never splits a contradiction bundle to hide counte
  f.set({memory:{maxRecallItems:2}});const packed=f.r.retriever.pack([a.m],{budgetChars:12000});assert.equal(packed.items.length,2);assert.equal(packed.bundles[0].conflict,true);
 });
 
-test('the normal 2200 character budget preserves both short conflicting attitudes with a UUID-length character identity',async t=>{
+test('an explicit 2200 character budget preserves both short conflicting attitudes with a UUID-length character identity',async t=>{
  const f=fixture(t,{characterId:'character:qq-00000000-0000-4000-8000-000000000001'}),r=f.r;
  const observe=(id,text)=>r.observe({adapter:'test-chat',externalId:id,kind:'chat',text,metadata:{speakerId:'qq:100001',conversationPeerId:'qq:100001',scope:'private:100001'}},{kind:'message-received',eventRoot:id});
  const remember=(e,text,key,extra={})=>r.inner.apply({summary:'我有自己的感受，旧想法仍在。',changes:[],dispositions:[{kind:'attitude',target:'qq:100001',facet:'相处',text,reason:'这次真实交谈使我有了这个感受',...extra}]},{expectedGeneration:r.inner.head().generation,eventIds:[e.eventId],key});
  remember(observe('trust','你那次说的话我认真听了'),'我信任他认真听我说话。','trust');const old=r.dispositions.rows()[0];remember(observe('anger','刚才拿你在意的事开玩笑了'),'我还是信任他，但这次玩笑让我生气，暂时不想接话。','anger',{transition:'coexist',previousId:old.id,expectedRevision:old.revision});
- const found=await r.retriever.recall('信任 生气 玩笑');assert.equal(found.items.length,2);assert.ok(found.items.some(m=>m.id===old.id));assert.ok(found.chars<=2200);assert.equal(found.bundles[0].conflict,true);for(const m of found.items){assert.equal(m.subjectId,r.characterId);assert.equal(m.disposition.target,'qq:100001');assert.equal(m.evidence.length,1);assert.equal(m.evidenceOrigin.selfActionConfirmed,false);}
+ const found=await r.retriever.recall('信任 生气 玩笑',{budgetChars:2200});assert.equal(found.items.length,2);assert.ok(found.items.some(m=>m.id===old.id));assert.ok(found.chars<=2200);assert.equal(found.bundles[0].conflict,true);for(const m of found.items){assert.equal(m.subjectId,r.characterId);assert.equal(m.disposition.target,'qq:100001');assert.equal(m.evidence.length,1);assert.equal(m.evidenceOrigin.selfActionConfirmed,false);}
 });
 
 test('chat associations refresh on setting changes and fit even the smallest configured injection budget',async t=>{
@@ -56,7 +57,7 @@ test('chat associations refresh on setting changes and fit even the smallest con
  const a=new DialogueAssociations({runtime:f.r,isV3:true,closed:false,contacts:{recent:()=>[]}});t.after(()=>a.close());
  f.set({memory:{associationBudgetChars:12000,dialogueBudgetChars:12000,associationMaxItems:4}});
  await a.prepare('private:101',{incoming:'pottery'});const full=a.view('private:101',{incoming:'pottery'});assert.equal(full.memories.length,4);
- f.set({memory:{associationMaxItems:1,dialogueBudgetChars:300}});await a.prepare('private:101',{incoming:'pottery'});const short=a.view('private:101',{incoming:'pottery'});assert.ok(JSON.stringify(short).length<=300);assert.ok(short.memories.length<=1);assert.equal(short.referenceOnly,true);
+ f.set({memory:{elasticRecallEnabled:0,associationMaxItems:1,dialogueBudgetChars:300}});await a.prepare('private:101',{incoming:'pottery'});const short=a.view('private:101',{incoming:'pottery'});assert.ok(JSON.stringify(short).length<=300);assert.ok(short.memories.length<=1);assert.equal(short.referenceOnly,true);
  assert.equal(f.r.store.list({kinds:['knowledge']}).length,4);
 });
 
@@ -115,12 +116,12 @@ test('lowered thread limits accept a byte-for-byte inherited long feeling but re
  const before=f.r.policy.state();assert.doesNotThrow(()=>feelingUpdate(f.r.inner,{psychology:{update:[op]}},before));
 });
 
-test('the real growth context uses configured psychology instructions and memory views',async()=>{
- const values=mergeRuntimeTuning(defaultRuntimeTuning(),{text:{psycheChars:200,psycheThreadChars:100,memoryGistChars:100},memory:{detailChars:100}}),m={id:'memory:fixture',revision:1,gist:'摘要'.repeat(300),detail:'细节'.repeat(400),participants:[],evidence:[],metadata:{},event_root:'root:fixture'},snapshot={core:{revision:1,body:'保留当前字段'},score:60,events:[{event_root:'root:fixture',impact:1,evidence:'["memory:fixture"]'}],evidence:[m]},runtime={runtimeTuning:()=>values};let captured;
- const store={runtimeTuning:runtime.runtimeTuning,inner:{runtime,snapshot:()=>({summary:'当前内心'})},edges:()=>[],list:()=>[],db:{prepare:()=>({run(){}})},atomic:(_kind,fn)=>fn(),assertJob(){},finish(){}};
- const policy={growthSnapshot:()=>snapshot,core:()=>[{field:'identity',body:'不变的角色',revision:1,locked:true}]},model={run:async(_purpose,system,material)=>{captured={system,material};return {text:snapshot.core.body,reason:'保持不变'};}};
- await new Consolidator({store,policy,model}).grow({payload:{field:'reflection',revision:1}},new AbortController().signal);
- assert.match(captured.system,/最多200字/);assert.match(captured.system,/每条新text最多100字/);assert.equal([...captured.material.experiences[0].gist].length,100);assert.equal([...captured.material.experiences[0].detail].length,100);
+test('the real V3 growth context uses configured psychology instructions and memory views',async t=>{
+ const values=mergeRuntimeTuning(defaultRuntimeTuning(),{text:{psycheChars:200,psycheThreadChars:100,memoryGistChars:100},memory:{detailChars:100}});let captured;
+ const f=createGrowthFixture({label:'configured-native-growth',think:async input=>{captured=input;return localModelReply({selfUnderstanding:[],reason:'保持当前理解。'});}});t.after(()=>f.close());
+ f.r.runtimeTuning=()=>values;f.r.store.runtimeTuning=f.r.runtimeTuning;f.r.model.runtimeTuning=f.r.runtimeTuning;
+ const m=f.experience('相处反馈'.repeat(120));f.r.policy.registerGrowth(m.id);const result=await f.r.runNext({kinds:['grow']});assert.equal(result.status,'complete',result.error);
+ assert.match(captured.system,/最多200字/);assert.match(captured.system,/每条新text最多100字/);assert.equal([...captured.material.memories[0].gist].length,100);assert.equal([...captured.material.memories[0].detail].length,100);assert.ok(f.r.store.get(m.id).detail.length>100);
 });
 
 test('internal understanding and foreground chat use separately adjustable psychological context budgets',t=>{
@@ -134,7 +135,7 @@ test('internal understanding and foreground chat use separately adjustable psych
 test('CharacterCognition passes dynamic input limits to its real model adapter without corrupting JSON',async t=>{
  const f=fixture(t);let calls=0;f.r.model.think=async()=>{calls++;return {data:{okay:true},receipt:{disposed:true,transcriptPersisted:false}};};
  assert.equal(f.r.model.runtimeTuning,f.r.runtimeTuning);f.set({text:{thoughtInputChars:2000}});
- await assert.rejects(f.r.model.run('fixture','保持完整证据',{text:'长'.repeat(2001)}),e=>e.code==='PAYLOAD_TOO_LARGE');assert.equal(calls,0);
+ await assert.rejects(f.r.model.run('fixture','保持完整证据',{text:'长'.repeat(2001)}),e=>e.code==='COGNITIVE_INPUT_TOO_LARGE'&&e.details.limitChars===2000&&e.details.inputChars>2000);assert.equal(calls,0);
  f.set({text:{thoughtInputChars:4000}});assert.deepEqual(await f.r.model.run('fixture','保持完整证据',{text:'长'.repeat(2001)}),{okay:true});assert.equal(calls,1);
 });
 

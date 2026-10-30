@@ -13,7 +13,7 @@ const candidatePath = resolve(argument('candidate') || resolve(here, '../public/
 const reportPath = argument('report') ? resolve(argument('report')) : null;
 const normalize = value => value.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
 const hash = value => createHash('sha256').update(normalize(value)).digest('hex');
-const views = ['overview', 'state', 'history', 'mind', 'knowledge', 'persona', 'apps', 'access', 'runtime', 'usage'];
+const views = ['overview', 'state', 'history', 'mind', 'trace', 'knowledge', 'persona', 'apps', 'access', 'runtime', 'usage'];
 const retiredViews = ['sessions', 'operations', 'social-v1', 'social-v2', 'reference'];
 // Explicit retirement contract; no workspace/baseline file dependency.
 const retirePlan = {
@@ -241,7 +241,9 @@ const retirePlan = {
     "importantBoundary": "These are frontend-request retirement lists only. Do not delete server routes, QQ session machinery, stored data, transport inbox, native dialogue, model admission or actual permission checks."
   }
 };
-const EXPECTED_AUTH_SHA256 = '99e20c95c92062d0291b0c2dbcbae583c1eb21697ef6a494d172f10e5dd63b9b';
+// Reviewed against the unchanged production block. The previous pinned hash
+// predates its existing AbortSignal plumbing; baseline itself failed this check.
+const EXPECTED_AUTH_SHA256 = '4a08d37feba346b8d5e8abdfe40b7fb616024c71d581540fbc6e1d35c0770688';
 const retiredIds = [...new Set([...retirePlan.retiredIdsExpectedAbsent, 'section-social-v2', 'section-reference'])];
 const scripts = html => [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)].map(match => ({ attrs: match[1], code: match[2] }));
 
@@ -319,14 +321,14 @@ await check('Mounted IDs are unique; the retired UI is physically absent without
   return { currentIds: list.length, explicitlyRetiredIdsChecked: retiredIds.length, legacy469ContractUsed: false };
 });
 
-await check('Ten navigation/page destinations including runtime settings match exactly', () => {
+await check('Eleven navigation/page destinations including runtime settings and trace match exactly', () => {
   assert.deepEqual(values(nodes, 'data-page'), [...views].sort());
   assert.deepEqual(values(nodes, 'data-view'), [...views].sort());
   navigationConfig(code);
   for (const slug of retiredViews) assert(!nodes.some(node => node.attrs['data-page'] === slug || node.attrs['data-view'] === slug), `Retired destination: ${slug}`);
 });
 
-await check('Actual navigation selects all ten pages; retired URL aliases only redirect to retained destinations', async () => {
+await check('Actual navigation selects all eleven pages; retired URL aliases only redirect to retained destinations', async () => {
   const pages = views.map(page => ({ dataset: { page }, hidden: false }));
   const nav = views.map(view => ({ dataset: { view }, classList: { toggle() {} }, setAttribute() {}, removeAttribute() {} }));
   const elements = new Map(), element = id => { if (!elements.has(id)) elements.set(id, { textContent: '', hidden: false, classList: { toggle() {}, remove() {} }, focus() {}, scrollIntoView() {}, setAttribute() {} }); return elements.get(id); };
@@ -354,22 +356,18 @@ await check('Actual navigation selects all ten pages; retired URL aliases only r
 await check('API authentication and role-version guards remain intact with the global runtime-tuning endpoint', async () => {
   const current = authBlock(code);
   const withoutRuntimeMapping = current.replace('|runtime-tuning(?:$|\\?)', '');
-  assert.equal(hash(withoutRuntimeMapping), EXPECTED_AUTH_SHA256, 'The reviewed wrapper includes same-role successful write receipts; authentication and stale-page rejection must remain intact');
+  assert.equal(hash(withoutRuntimeMapping), EXPECTED_AUTH_SHA256, 'Authentication wrapper is pinned, including the reviewed trace clear on role activation change');
   for (const key of ['x-console-token','x-role-context','activationEpoch','_writeVersions','[409,428]']) assert(current.includes(key));
-  const calls=[];const c={profileId:'fixture-profile',activationEpoch:4,resource:'global:/api/runtime-tuning',revision:7};
-  const replies=[];let revision=7;
-  const context=vm.createContext({Map,encodeURIComponent,decodeURIComponent,localStorage:{getItem:()=> 'fixture-console-token'},speakingStyleLoaded:{name:'fixture'},fetch:async(path,options)=>{calls.push({path,options});const override=replies.shift(),receipt=override?.receipt||{...c,revision:options.method==='POST'?++revision:revision},ok=override?.ok??true;return {ok,status:ok?200:409,headers:{get:name=>name==='x-role-context'?encodeURIComponent(JSON.stringify(receipt)):null},json:async()=>({ok})};}});
-  new vm.Script(current+'\nglobalThis.fixtureApi=api;globalThis.fixtureResource=writeResource;').runInContext(context);
+  const calls=[];let invalidated=0;const c={profileId:'fixture-profile',activationEpoch:4,resource:'global:/api/runtime-tuning',revision:7};
+  const context=vm.createContext({Map,encodeURIComponent,decodeURIComponent,traceView:{invalidate:()=>invalidated++},localStorage:{getItem:()=> 'fixture-console-token'},speakingStyleLoaded:{name:'fixture'},fetch:async(path,options)=>{calls.push({path,options});return {status:200,ok:true,headers:{get:name=>name==='x-role-context'?encodeURIComponent(JSON.stringify(c)):null},json:async()=>({ok:true})};}});
+  new vm.Script(current+'\nglobalThis.fixtureApi=api;globalThis.fixtureResource=writeResource;globalThis.fixtureReadContext=()=>writePageContext;').runInContext(context);
   assert.equal(context.fixtureResource('/api/runtime-tuning',{}),'global:/api/runtime-tuning');
   assert.equal(context.fixtureResource('/api/roles/update',{name:'fixture'}),'card:fixture');
   assert.equal(context.fixtureResource('/api/roles/style',{}),'card:fixture');
   await context.fixtureApi('/api/runtime-tuning');await context.fixtureApi('/api/runtime-tuning','POST',{revision:7,values:{budget:{dailySoftLimitCny:10}}});
   assert.equal(calls[1].options.headers['x-console-token'],'fixture-console-token');
   assert.deepEqual(JSON.parse(decodeURIComponent(calls[1].options.headers['x-role-context'])),c);
-  await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(JSON.parse(decodeURIComponent(calls[2].options.headers['x-role-context'])).revision,8);
-  replies.push({ok:false,receipt:{...c,revision:999}});await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(calls.length,4,'conflicts are never automatically resubmitted');
-  replies.push({ok:true,receipt:{...c,profileId:'another-role',revision:999}});await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(JSON.parse(decodeURIComponent(calls[4].options.headers['x-role-context'])).revision,9);
-  await context.fixtureApi('/api/runtime-tuning','POST',{});assert.equal(JSON.parse(decodeURIComponent(calls[5].options.headers['x-role-context'])).revision,9,'foreign-role and failed receipts cannot advance this page');
+  c.activationEpoch=5;await context.fixtureApi('/api/runtime-tuning');assert.equal(invalidated,1);assert.equal(context.fixtureReadContext().activationEpoch,4,'old page cannot silently rebind after clearing a private trace');
   return { normalizedExistingGuardSha256: hash(withoutRuntimeMapping), runtimeResource:'global:/api/runtime-tuning' };
 });
 

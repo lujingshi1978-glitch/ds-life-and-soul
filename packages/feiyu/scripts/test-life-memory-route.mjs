@@ -149,8 +149,8 @@ test('real HTTP list and overview prepare only SELECT, read no raw body and leav
   assert.deepEqual(databases.map(db => db.prepare('SELECT total_changes() n').get().n), before);
 });
 
-test('legacy overview block retains the reviewed export baseline', () => {
-  const current = fs.readFileSync(new URL('../src/bridge.js', import.meta.url), 'utf8');
+test('legacy overview block retains the reviewed parent candidate baseline', () => {
+  const current = fs.readFileSync(new URL('../src/bridge.js', import.meta.url), 'utf8').replace(/\r\n/g,'\n');
   const begin = current.indexOf("        if (url.pathname === '/api/mind/overview'");
   const end = current.indexOf("        if(url.pathname==='/api/mind/state/adjust'", begin);
   assert.ok(begin >= 0 && end > begin);

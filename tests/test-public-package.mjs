@@ -97,6 +97,8 @@ test('private identifier rules are optional, literal, isolated and validated', t
 test('synthetic identities and documented empty/example credentials pass', () => {
   const text = `const person = 'qq:100001';\nconst second = 'private:100002';\nconst timeout = 1000000000;\nconst apiKey = '';\nconst accessToken = 'fixture-integration-token';\nconst password = 'change-me';`;
   assert.deepEqual(scanPublicText(text, 'tests/fixture.mjs'), []);
+  assert.deepEqual(scanPublicText("authorization: 'not-granted-by-association'", 'src/policy.js'), []);
+  assert.ok(scanPublicText(['api','Key'].join('')+": 'not-granted-by-association'", 'src/policy.js').some(item => item.rule === 'literal-credential'));
 });
 
 test('literal authentication secrets and long QQ fixture identities fail', () => {

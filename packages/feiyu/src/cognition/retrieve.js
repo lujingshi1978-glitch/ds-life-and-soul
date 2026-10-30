@@ -2,9 +2,10 @@ import {isOperationalMaterial,memoryLearningEligible} from '../operational-mater
 import {vectorSearch} from './vector-search.js';
 import {Worker} from 'node:worker_threads';
 import {hash,json,parse,terms,entityId,unit,fail,assertSignal,clip} from './contracts.js';
-import {expressionFeedbackApplies} from './memory-activation.js';
+import {expressionFeedbackApplies,selfUnderstandingApplies} from './memory-activation.js';
 import {associativeRecall} from './v3-recall.js';
 import {memoryEvidenceOrigin} from './evidence-origin.js';
+import {selfUnderstandingModelView} from './model-view.js';
 import {tuningFor} from '../runtime-tuning.js';
 
 async function deadline(work,ms,signal){
@@ -57,11 +58,11 @@ export class MemoryRetriever {
       for(const n of neighbors)if(!seen.has(n.id))queue.push({m:n,hop:hop+1});
     }return out;
   }
-  pack(rows,{budgetChars=tuningFor(this).memory.recallBudgetChars,entities,depth='shallow',compact=false,currentInterestsOnly=false,expressionScope}={}){
+  pack(rows,{budgetChars=tuningFor(this).memory.recallBudgetChars,entities,depth='shallow',compact=false,currentInterestsOnly=false,expressionScope,query=''}={}){
     const tuning=tuningFor(this),bundles=[],used=new Set();let chars=0,budgetOmissions=0;
-    for(const row of rows){const original=this.store.get(row.id);if(!original||original.revision!==row.revision)continue;const live=original.metadata.duplicateOf?this.store.get(original.metadata.duplicateOf):original;if(!live||!this.eligible(live)||expressionScope&&!expressionFeedbackApplies(live,expressionScope)||used.has(live.id)||currentInterestsOnly&&live.metadata.disposition?.kind==='interest'&&['outdated','candidate'].includes(live.status))continue;
-      const relatives=this.store.edges(live.id).filter(e=>['contradicts','supersedes'].includes(e.relation)).map(e=>this.store.get(e.from_id===live.id?e.to_id:e.from_id)).filter(m=>m&&this.eligible(m)&&(!expressionScope||expressionFeedbackApplies(m,expressionScope))&&!(currentInterestsOnly&&m.metadata.disposition?.kind==='interest'&&['outdated','candidate'].includes(m.status)));
-      let members=[live,...relatives.filter(r=>!used.has(r.id))].map(m=>({id:m.id,revision:m.revision,kind:m.kind,gist:m.gist,epistemic:m.epistemic,status:m.status,occurredAt:m.occurred_at,validFrom:m.valid_from,validTo:m.valid_to,...(m.assertion?{assertion:m.assertion}:{}),evidenceOrigin:memoryEvidenceOrigin(m,{archive:this.store.inner?.runtime?.archive||this.archive,characterId:this.store.characterId}),...(m.metadata.disposition?{disposition:m.metadata.disposition,subjectId:this.store.characterId,interpretation:'subjective-not-person-fact'}:{}),participants:m.participants,evidence:m.evidence,detailAvailable:m.detail_state==='available',
+    for(const row of rows){const original=this.store.get(row.id);if(!original||original.revision!==row.revision)continue;const live=original.metadata.duplicateOf?this.store.get(original.metadata.duplicateOf):original;if(!live||!this.eligible(live)||expressionScope&&(!expressionFeedbackApplies(live,expressionScope)||!selfUnderstandingApplies(live,{expressionScope,query}))||used.has(live.id)||currentInterestsOnly&&live.metadata.disposition?.kind==='interest'&&['outdated','candidate'].includes(live.status))continue;
+      const relatives=this.store.edges(live.id).filter(e=>['contradicts','supersedes'].includes(e.relation)).map(e=>this.store.get(e.from_id===live.id?e.to_id:e.from_id)).filter(m=>m&&this.eligible(m)&&(!expressionScope||expressionFeedbackApplies(m,expressionScope)&&selfUnderstandingApplies(m,{expressionScope,query}))&&!(currentInterestsOnly&&m.metadata.disposition?.kind==='interest'&&['outdated','candidate'].includes(m.status)));
+      let members=[live,...relatives.filter(r=>!used.has(r.id))].map(m=>({id:m.id,revision:m.revision,kind:m.kind,gist:m.gist,epistemic:m.epistemic,status:m.status,occurredAt:m.occurred_at,validFrom:m.valid_from,validTo:m.valid_to,...(m.assertion?{assertion:m.assertion}:{}),evidenceOrigin:memoryEvidenceOrigin(m,{archive:this.store.inner?.runtime?.archive||this.archive,characterId:this.store.characterId}),...(m.metadata.disposition?{disposition:m.metadata.disposition,subjectId:this.store.characterId,interpretation:'subjective-not-person-fact'}:{}),...(m.metadata.selfUnderstanding?{selfUnderstanding:selfUnderstandingModelView(m.metadata.selfUnderstanding),interpretation:'scoped-subjective-self-understanding-not-current-task-or-person-rule'}:{}),participants:m.participants,evidence:m.evidence,detailAvailable:m.detail_state==='available',
         ...(entities?.length?{isCurrentSubject:m.assertion?.subjectId?entities.includes(m.assertion.subjectId):m.participants.some(p=>entities.includes(p.entity_id))}:{}),
         ...(m.status==='outdated'?{limitations:['历史信息，当前状态可能已变化']}:{})}));
       // Conflict/supersession bundles stay indivisible. A smaller item budget
@@ -81,8 +82,8 @@ export class MemoryRetriever {
       chars+=size;bundles.push(bundle);members.forEach(m=>used.add(m.id));
     }return {origin:'memory-not-archive',characterRevision:this.store.manifest().cognition_revision,depth,bundles:bundles.map(b=>({ids:b.items.map(m=>m.id),conflict:b.conflict})),items:bundles.flatMap(b=>b.items),omittedForBudget:budgetOmissions>0,missing:bundles.length?null:budgetOmissions?'相关记忆超过本轮预算，未注入；不表示没有这段经历。':'没有找到足够相关的记忆。精确原话请查档案。',chars};
   }
-  async recall(query,{depth='shallow',entities=[],kinds,from,to,at,budgetChars,signal,purpose='general',includeCrossContact=true,subjectFilterExplicit=false,implicitSelfId,conversationPeerId,currentInterestsOnly=false,expressionScope}={}){
-    if(this.store.inner)return associativeRecall(this,query,{depth,entities,kinds,from,to,at,budgetChars,signal,purpose,includeCrossContact,subjectFilterExplicit,implicitSelfId,conversationPeerId,currentInterestsOnly,expressionScope});
+  async recall(query,{depth='shallow',entities=[],kinds,from,to,at,budgetChars,budgetPolicy,signal,purpose='general',includeCrossContact=true,subjectFilterExplicit=false,implicitSelfId,conversationPeerId,currentInterestsOnly=false,expressionScope}={}){
+    if(this.store.inner)return associativeRecall(this,query,{depth,entities,kinds,from,to,at,budgetChars,budgetPolicy,signal,purpose,includeCrossContact,subjectFilterExplicit,implicitSelfId,conversationPeerId,currentInterestsOnly,expressionScope});
     if(typeof query!=='string'||!query.trim()||query.length>1000||!['shallow','deep'].includes(depth))fail('INVALID_RECALL');entities.forEach(entityId);
     if(/验证码|原话|原句|原文|精确(?:时间|数字)|完整链接/.test(query))return {origin:'memory-not-archive',depth,items:[],bundles:[],nextAction:{tool:'qq_search_resources',reason:'精确内容需要查档案，不从记忆大意补全'},degradedChannels:[],chars:0};
     if(purpose==='general'&&/答应|承诺|约好|欠我/.test(query))purpose='promise';if(at===undefined&&/现在|目前|如今/.test(query))at=this.now();
@@ -90,7 +91,7 @@ export class MemoryRetriever {
     const budget=Math.max(1,Math.min(configured,budgetChars||configured)),revision=this.store.manifest().cognition_revision;
     const key=hash([query,depth,entities,kinds,from,to,at,budget,tuning.memory.maxRecallItems,tuning.text.memoryGistChars,purpose,includeCrossContact,expressionScope,revision]),cached=this.cache.get(key);if(cached&&this.now()-cached.at<30000)return structuredClone(cached.result);
     const start=this.now(),degraded=[],pool=new Map(),scores=new Map(),qs=terms(query);
-    const permitted=m=>m&&this.eligible(m)&&(!expressionScope||expressionFeedbackApplies(m,expressionScope))&&(!kinds||kinds.includes(m.kind))&&matchTime(m,from,to,at)&&(!(purpose==='promise'||!includeCrossContact)||!entities.length||entities.includes(m.assertion?.subjectId));
+    const permitted=m=>m&&this.eligible(m)&&(!expressionScope||expressionFeedbackApplies(m,expressionScope)&&selfUnderstandingApplies(m,{expressionScope,query}))&&(!kinds||kinds.includes(m.kind))&&matchTime(m,from,to,at)&&(!(purpose==='promise'||!includeCrossContact)||!entities.length||entities.includes(m.assertion?.subjectId));
     const add=(rows,weight)=>rows.filter(permitted).forEach((m,i)=>{pool.set(m.id,m);scores.set(m.id,(scores.get(m.id)||0)+weight/(60+i+1));});
     try{add(this.store.lexical(query,30),1);}catch{degraded.push('lexical-unavailable');}
     if(this.embedding){try{const hits=await this.vector(query,{signal});add(hits.map(h=>this.store.get(h.id)).filter(Boolean),1);}catch(e){assertSignal(signal);degraded.push(e.code||'semantic-unavailable');}}
@@ -121,7 +122,7 @@ export class MemoryRetriever {
     }
     // Diversity operates only on related candidates; shared evidence alone is not a duplicate.
     const diverse=[];for(const m of selected){if(!permitted(m)||diverse.some(n=>n.kind===m.kind&&similarity(n,m)>.96&&json(n.assertion)===json(m.assertion)))continue;diverse.push(m);}
-    const result={...this.pack(diverse,{budgetChars:budget,entities,depth,expressionScope}),degradedChannels:degraded,elapsedMs:this.now()-start};
+    const result={...this.pack(diverse,{budgetChars:budget,entities,depth,expressionScope,query}),degradedChannels:degraded,elapsedMs:this.now()-start};
     this.cache.set(key,{at:this.now(),result});if(this.cache.size>100)this.cache.delete(this.cache.keys().next().value);
     this.store.db.prepare('INSERT INTO v2_recall_log VALUES(?,?,?)').run('recall:'+hash([key,this.now(),Math.random()]).slice(0,32),this.now(),json({queryHash:hash(query),depth,ids:result.items.map(m=>m.id),degraded,elapsedMs:result.elapsedMs}));
     return structuredClone(result);

@@ -1,4 +1,5 @@
 import {hash,json,parse,fail,assertSignal} from './contracts.js';
+import {compileReflectionInput} from './reflection-input.js';
 
 // A reading is integrated by the existing forebrain. This journal binds only
 // its selected public effects to that commit; it is not another decision loop.
@@ -7,13 +8,37 @@ const instruction=READING_EVIDENCE_HINT+'\n'+`本次publicReading是刚刚实际
 
 export function publicReadingMaterial({ref,item,text,coverage}){
  if(typeof text!=='string')fail('PUBLIC_READING_TEXT_INVALID');const points=[...text];
- return (base,{maxInputChars=48000}={})=>{
+ return (base,{maxInputChars=48000,resourceReadChars=16000,finalizeMaterial}={})=>{
   const limit=maxInputChars-(Object.hasOwn(base,'rejected')?1000:3000);
   const build=n=>({publicReading:{platform:item.platform,url:item.url,title:item.title,text:points.slice(0,n).join(''),coverage,textWindow:{scope:'suppliedReadingText',sourceId:ref.sourceId,revision:ref.revision,fullChars:points.length,excerptChars:n,partial:n<points.length}}});
-  const fits=n=>json({...base,...build(n)}).length<=limit;
-  if(!fits(0))fail('PUBLIC_READING_CONTEXT_TOO_LARGE');
-  let low=0,high=points.length;while(low<high){const middle=Math.ceil((low+high)/2);if(fits(middle))low=middle;else high=middle-1;}
-  if(points.length&&!low)fail('PUBLIC_READING_CONTEXT_TOO_LARGE');return build(low);
+  const wire=n=>typeof finalizeMaterial==='function'?finalizeMaterial(build(n)):{...base,...build(n)};
+  if(limit<1)fail('PUBLIC_READING_CONTEXT_TOO_LARGE');
+  if(JSON.stringify(wire(points.length)).length<=limit)return build(points.length);
+  // If the base fits, preserve the existing excerpt/reserve contract exactly.
+  // Packing is needed only when accumulated optional host context itself would
+  // otherwise reject every possible reading before the final compiler runs.
+  const packOptional=JSON.stringify(wire(0)).length>limit;
+  // In this recovery branch a maximal mandatory excerpt would evict the
+  // association context the forebrain is meant to consider alongside it. Use
+  // the existing configured single-read window before fitting the total input.
+  const upper=packOptional?Math.min(points.length,Number.isSafeInteger(resourceReadChars)&&resourceReadChars>0?resourceReadChars:16000):points.length;
+  let minimumError;
+  const fits=n=>{
+   const material=wire(n);
+   // Keep the ordinary path byte-for-byte and avoid repeatedly rendering a
+   // compiler result when the original full material already fits the reserve.
+   if(JSON.stringify(material).length<=limit)return true;
+   if(!packOptional)return false;
+   try{compileReflectionInput(material,{maxChars:limit});return true;}
+   catch(error){if(error.code!=='THOUGHT_INPUT_MINIMUM_TOO_LARGE')throw error;minimumError=error;return false;}
+  };
+  if(packOptional&&fits(upper))return build(upper);
+  if(!fits(0))throw minimumError;
+  let low=0,high=upper-1;while(low<high){const middle=Math.ceil((low+high)/2);if(fits(middle))low=middle;else high=middle-1;}
+  if(points.length&&!low){if(minimumError)throw minimumError;fail('PUBLIC_READING_CONTEXT_TOO_LARGE');}
+  // Return only the reading extension. The forebrain must still capture its
+  // original complete read set before its final optional-context projection.
+  return build(low);
  };
 }
 

@@ -108,6 +108,7 @@ export function scanPublicText(text, relative, { privateIdentifiers = [] } = {})
   // and synthetic test tokens are allowed; findings never contain their values.
   const assignment = /\b(?:apiKey|api_key|accessToken|access_token|refreshToken|refresh_token|authorization|password|consoleToken|gatewayToken)\s*[:=]\s*(['"])([^'"\r\n]+)\1/gi;
   for (const match of text.matchAll(assignment)) {
+    if (/^authorization\b/i.test(match[0]) && match[2] === 'not-granted-by-association') continue;
     if (/^(?:\s*|example(?:[-_ ].*)?|change[-_ ].*|replace[-_ ].*|your[-_ ].*|fixture(?:[-_ ].*)?|synthetic(?:[-_ ].*)?|test(?:[-_ ].*)?|invalid|fake|Bearer\s+|\$\{.*\}|<.*>|0+)$/i.test(match[2])) continue;
     if (match[2].length >= 12 && !/^\s*(?:process\.env|os\.environ|env[.(])/i.test(match[2])) findings.push(issue('literal-credential', relative, text.slice(0, match.index).split('\n').length));
   }

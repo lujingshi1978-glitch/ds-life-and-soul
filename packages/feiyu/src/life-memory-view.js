@@ -39,8 +39,9 @@ export function createLifeMemoryView({ runtime, profile, getBinding, authorizeCo
   const parse = value => { try { const x = JSON.parse(value); return x && typeof x === 'object' && !Array.isArray(x) ? x : {}; } catch { return {}; } };
   const string = value => typeof value === 'string' && value.trim() ? value : null;
   const refKey = (id, revision) => id + '@' + revision;
-  const families = { qq: 'QQ', wechat: '微信', web: '网页与公开平台', video: '视频资料', file: '文件与附件', qzone: 'QQ空间', learning: '学习资料', other: '其他来源' };
+  const families = { desktop: '桌面与语音', qq: 'QQ', wechat: '微信', web: '网页与公开平台', video: '视频资料', file: '文件与附件', qzone: 'QQ空间', learning: '学习资料', other: '其他来源' };
   const sourceFamily = source => {
+    if(source.platform==='desktop'||String(source.scope||'').startsWith('pet:'))return 'desktop';
     const platform = String(source.platform || '').toLowerCase(), kind = String(source.kind || '').toLowerCase(), adapter = String(source.adapter || '').toLowerCase();
     if (/file|attachment|pdf|docx|document-read/.test(kind) || kind === 'document' || /^(file|local-file)/.test(adapter)) return 'file';
     if (platform === 'qzone' || /qzone|contact-post|qq-post/.test(kind) || adapter === 'qq-live-archive' && kind === 'post') return 'qzone';

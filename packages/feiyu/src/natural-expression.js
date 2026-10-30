@@ -6,15 +6,16 @@ export const CURRENT_FEELING_HINT='此刻心理是承接旧理解的连续状态
 // First-order affect only, never a reasoning trace or independent event evidence.
 export const EMOTIONS=['anger','hurt','amusement','embarrassment','interest'];
 export const IMPULSES=['stay','share','tease','pushback','ask','help','avoid','disengage'];
-const short=(v,n)=>{if(typeof v!=='string'||[...v].length>n)throw Error('INVALID_APPRAISAL');return v.trim();};
+const invalidAppraisal=(path,expected)=>{const error=new Error('INVALID_APPRAISAL');error.code='INVALID_APPRAISAL';error.details={path,expected};throw error;};
+const short=(v,n)=>{if(typeof v!=='string'||[...v].length>n)invalidAppraisal('appraisal.text','string of at most '+n+' characters');return v.trim();};
 export function normalizeAppraisal(value,before={},scope='self',at=Date.now()){
-  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['focus','trigger','impulse','emotions'].includes(k)))throw Error('INVALID_APPRAISAL');
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['focus','trigger','impulse','emotions'].includes(k)))invalidAppraisal('appraisal',['focus','trigger','impulse','emotions']);
   const next={...before,emotions:{...before.emotions},emotionOrigins:{...before.emotionOrigins},updatedAt:at,originScope:scope};
   for(const k of ['focus','trigger'])if(value[k]!==undefined)next[k]=short(value[k],100);
-  if(value.impulse!==undefined){if(!IMPULSES.includes(value.impulse))throw Error('INVALID_APPRAISAL');next.impulse=value.impulse;}
+  if(value.impulse!==undefined){if(!IMPULSES.includes(value.impulse))invalidAppraisal('appraisal.impulse',IMPULSES);next.impulse=value.impulse;}
   if(value.emotions!==undefined){
-    if(!value.emotions||typeof value.emotions!=='object'||Array.isArray(value.emotions)||Object.keys(value.emotions).some(k=>!EMOTIONS.includes(k)))throw Error('INVALID_APPRAISAL');
-    for(const [k,v]of Object.entries(value.emotions)){if(!Number.isFinite(v)||v<0||v>1)throw Error('INVALID_APPRAISAL');next.emotions[k]=v;if(v>(before.emotions?.[k]||0)||!next.emotionOrigins[k])next.emotionOrigins[k]=scope;}
+    if(!value.emotions||typeof value.emotions!=='object'||Array.isArray(value.emotions))invalidAppraisal('appraisal.emotions',EMOTIONS);
+    for(const [k,v]of Object.entries(value.emotions)){if(!EMOTIONS.includes(k))invalidAppraisal('appraisal.emotions.'+k,{allowedKeys:EMOTIONS,note:'Keep other feelings such as care in mood/summary; do not invent numeric dimensions.'});if(!Number.isFinite(v)||v<0||v>1)invalidAppraisal('appraisal.emotions.'+k,'number between 0 and 1');next.emotions[k]=v;if(v>(before.emotions?.[k]||0)||!next.emotionOrigins[k])next.emotionOrigins[k]=scope;}
   }
   if(value.trigger===undefined&&before.trigger)next.originScope=before.originScope||scope;
   return next;

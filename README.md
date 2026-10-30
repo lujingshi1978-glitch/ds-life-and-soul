@@ -1,6 +1,6 @@
 # 肥鱼 Feiyu Life
 
-当前版本：**0.5.2**。修复历史用量重放拖慢启动和重复计费，补齐网站操作与语音小字幕，并将临时行动动机与长期关注分开。
+当前版本：**0.5.3**。整合情境成长、弹性记忆召回、主动关联、经历来源树与自身行动证据检查，并更新项目哲学介绍和演示图片。
 
 肥鱼是运行在本机 DSH 上的持续生活智能体。角色核心提供稳定的价值方向，经历、兴趣、关系和当下的想法在本地分别保存，再按当前情境参与理解与表达。
 
@@ -42,6 +42,8 @@ node scripts/deploy.mjs launch
 
 详见 [功能说明](docs/FEATURES.md)、[架构说明](docs/ARCHITECTURE.md) 和 [边界说明](docs/BOUNDARIES.md)。能力是否可用还取决于依赖、账号和授权。代码存在不等于该平台已经登录。
 
+成长、记忆与来源图的使用方式、验证范围及限制见 [情境成长与召回说明](docs/GROWTH_AND_RECALL.md)。本版本为源码整合包；私有运行时一键安装版仍在独立验收中。
+
 ## 默认行为
 
 全新安装不导入任何历史记忆。OneBot/QQ 默认关闭，白名单为空，主动联系与网站自主互动关闭。受限创造与独立工作入口也默认关闭。安装快捷语音仅开放本机桌面入口，不授予网站或 QQ 的额外权限。
@@ -61,8 +63,9 @@ node scripts/deploy.mjs launch
 | 架构与扩展 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | 安全、数据与权限 | [BOUNDARIES.md](docs/BOUNDARIES.md) |
 | 排错 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
-| 项目介绍 PPT | [feiyu-introduction.pptx](presentation/feiyu-introduction.pptx) |
+| 项目哲学与完整机制介绍（29页） | [feiyu-introduction.pptx](presentation/feiyu-introduction.pptx) |
 | PDF 预览 | [feiyu-introduction-preview.pdf](presentation/feiyu-introduction-preview.pdf) |
+| 核心、记忆、兴趣与关系的11张演示图 | [demo-images/](presentation/demo-images/) |
 | 合成演示数据与素材来源 | [examples/](examples/) |
 
 ## 开发与验证

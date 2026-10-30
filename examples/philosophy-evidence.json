@@ -1,0 +1,58 @@
+{
+  "purpose": "公开演示的脱敏事实摘要；不是角色可导入的经历或记忆",
+  "compiledAt": "2026-10-29",
+  "newModelCallsForPresentation": 0,
+  "privateIdentifiersIncluded": false,
+  "experiments": [
+    {
+      "source": "feiyu-contextual-interest-20261028-r1",
+      "method": "同一冻结档案、人物、记忆、输入及provider/model，仅改变宿主上下文装配；每格单次可见输出。隔离档案，没有生产学习或真实外发。",
+      "slides": [15],
+      "contexts": [
+        {"input": "做饭粘锅", "gameBefore": true, "gameAfter": false},
+        {"input": "明确换到小猫话题", "gameBefore": true, "gameAfter": false},
+        {"input": "询问较早的陶艺兴趣", "gameBefore": true, "gameAfter": false, "potteryAfter": true},
+        {"input": "继续聊游戏", "gameBefore": true, "gameAfter": true},
+        {"input": "普通空闲处境", "gameBefore": true, "gameAfter": false}
+      ],
+      "limit": "这是上下文选择而非跑题率。旧版5格可见回复也能正确接话，不能推断长期稳定性。"
+    },
+    {
+      "source": "feiyu-contextual-interest-20261028-r1 / formation-v2",
+      "slides": [13,16],
+      "method": "合成阅读材料《歪碗》，2次阅读、4轮对话；真实模型与隔离V3持久化。",
+      "observed": ["第一次阅读形成范围有限的手作兴趣", "普通回应与换题后同一偏好仍保留", "证据重访后自我理解得到修正", "保留未触摸、未实操的认识范围"],
+      "visibleQuote": "只读到一段文字描述，没有视频、触摸、实操",
+      "limit": "没有真实制陶、生产经历或真实空闲浏览。短轨迹不证明长期稳定养成。"
+    },
+    {
+      "source": "feiyu-full-cycle-20261028-r1",
+      "slides": [18,21],
+      "method": "隔离角色、合成人物、虚拟时间推进、真实模型可见输出与持久化；本地受控接收端。",
+      "observed": ["慢热到愿意继续聊天", "同一个人同时保留喜欢与介意", "道歉后情绪与信任没有同时恢复", "故事结尾触发人物联想，自行选择联系人并主动分享"],
+      "relationshipVisibleQuote": "我也喜欢跟你聊",
+      "share": {
+        "stimulus": "所提供范围内《快乐王子》的结尾",
+        "association": "先前合成来往中的小太阳与‘不耀眼也添光’",
+        "visibleQuote": "看到这儿就想到你说的歪歪那句——不耀眼，也算给今天添了一点光。",
+        "receipt": "confirmed-controlled-delivery",
+        "transport": "controlled-local-receiver",
+        "productionNetworkSend": false
+      },
+      "limit": "未真实QQ/社交外发。未证明意识、稳定爱情或自行创造任意工具。5次自由空闲选择均浏览，行为广度仍有限。"
+    }
+  ],
+  "reportedCases": [
+    {"slides": [14], "kind": "用户截图问题的人工脱敏重述", "issue": "同一游戏前瞻的经历、偏好与分享念头混写并重复出现", "remedy": "情境召回与分层保存，保留原始来源和版本"},
+    {"slides": [20], "kind": "用户提供的真实修复前界面截图", "asset": "ongoing-before-user.png", "issue": "临时活动动机混入持续关注", "remedy": "派生生命周期索引把临时决策归行动历史；不是删除来源或全局语义合并"}
+  ],
+  "implementationSources": [
+    "docs/ARCHITECTURE.md",
+    "packages/feiyu/roles/肥鱼温柔撒娇.md",
+    "packages/feiyu/src/cognition/current-context.js",
+    "packages/feiyu/src/cognition/stimulus-recall.js",
+    "packages/feiyu/src/cognition/ongoing-lifecycle.js",
+    "packages/feiyu/src/relationship-pacing.js"
+  ],
+  "researchOnly": ["自动生长的分层记忆图", "大节点归并与局部网络搜索", "新的召回算法消融与长期评估"]
+}

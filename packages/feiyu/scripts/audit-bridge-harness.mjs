@@ -1,11 +1,13 @@
+import {configuredOneBotEnabled,validateOneBotHttpUrl} from '../src/onebot-client.js';
+import {knowledgePageView} from '../src/knowledge-presentation.js';
+import {buildTrace} from '../src/life-trace-view.js';
+import {mediaPython} from '../src/portable-paths.js';
 import {chatWindowView} from '../src/chat-window-budget.js';
-import {validateOneBotHttpUrl,configuredOneBotEnabled} from '../src/onebot-client.js';
 import * as runtimeTuning from '../src/runtime-tuning.js';
 import {RuntimeTuningControl} from '../src/runtime-tuning-control.js';
 import {DailyCostBudget} from '../src/daily-cost-budget.js';
 import {embeddingCompatibilityStatus} from '../src/cognition/embedding.js';
 import {CONVERSATION_RESPONSE,conversationReply,recordChannelOutcome} from '../src/conversation-response.js';
-import {mediaPython} from '../src/portable-paths.js';
 import {TransportInbox} from '../src/transport-inbox.js';
 import {buildExpressionContext} from '../src/conversation-expression.js';
 import {createSelfUnderstandingGetter} from '../src/self-understanding.js';
@@ -23,6 +25,7 @@ import {LEARNING_HINT} from '../src/learning-hint.js';
 import * as conversationStage from '../src/conversation-stage.js';
 import * as energyContext from '../src/energy-context.js';
 import {adminRuntimeStatus,adminRuntimeTest} from '../src/admin-runtime.js';
+import * as selfActionEvidence from '../src/cognition/self-action-evidence.js';
 import * as dialogueGrounding from '../src/dialogue-grounding.js';
 import * as dialogueUnderstanding from '../src/dialogue-understanding.js';
 import * as operationalMaterial from '../src/operational-material.js';
@@ -269,7 +272,7 @@ export async function bridgeHarness({ config = {}, savedState, files = {}, globa
   bot.onPrivateMessage(async (event) => {`);
   const timers = new Set();
   const context = vm.createContext({
-    fs, os, path, http, crypto, fileURLToPath, pathToFileURL, URL, Buffer, AbortSignal, AbortController, mediaPython, validateOneBotHttpUrl, configuredOneBotEnabled, console: { log() {}, error() {} },
+    fs, os, path, http, crypto, fileURLToPath, URL, Buffer, AbortSignal, AbortController, console: { log() {}, error() {} },
     fetch: fakeFetch,
     // 锁文件探测用（bridge.js 顶层的 consolePortInUse）；
     // 固定桩掉：测试不应该真去 netstat 宿主机。
@@ -291,7 +294,7 @@ export async function bridgeHarness({ config = {}, savedState, files = {}, globa
     ...knowledgeCompat,...behaviorArmor,DelegationIntentGate,TaskCenter,TransportInbox,DisabledKnowledge,LiveCognition,LiveKnowledge,nativeCallThought,LEARNING_HINT,executionGuard,backgroundThought,accountThought,foregroundThought,buildExpressionContext,createSelfUnderstandingGetter,buildAutonomyOpportunities,
     // Imported pure validation sees a different VM Object prototype; serialize only at this boundary.
     normalizeCognitionConfig:(mind,options)=>normalizeCognitionConfig(mind==null?mind:JSON.parse(JSON.stringify(mind)),options),
-    chatWindowView,...runtimeTuning,mergeRuntimeTuning:(a,b)=>runtimeTuning.mergeRuntimeTuning(JSON.parse(JSON.stringify(a)),JSON.parse(JSON.stringify(b))),normalizeRuntimeTuning:(value,options)=>runtimeTuning.normalizeRuntimeTuning(JSON.parse(JSON.stringify(value)),options),RuntimeTuningControl,DailyCostBudget,embeddingCompatibilityStatus,...energyContext,adminRuntimeStatus,adminRuntimeTest,...dialogueGrounding,...dialogueUnderstanding,...operationalMaterial,...mediaConversation,...speakingStyle,...roleCards,...qzone,...systemServices,encodeDialogueEvent,consoleEntryPage,
+    configuredOneBotEnabled,validateOneBotHttpUrl,mediaPython,chatWindowView,...runtimeTuning,mergeRuntimeTuning:(a,b)=>runtimeTuning.mergeRuntimeTuning(JSON.parse(JSON.stringify(a)),JSON.parse(JSON.stringify(b))),normalizeRuntimeTuning:(value,options)=>runtimeTuning.normalizeRuntimeTuning(JSON.parse(JSON.stringify(value)),options),RuntimeTuningControl,DailyCostBudget,embeddingCompatibilityStatus,...energyContext,adminRuntimeStatus,adminRuntimeTest,...dialogueGrounding,...selfActionEvidence,...dialogueUnderstanding,...operationalMaterial,...mediaConversation,...speakingStyle,...roleCards,...qzone,...systemServices,encodeDialogueEvent,consoleEntryPage,
     startServices:async()=>{throw Error('Process control must be explicitly mocked in isolated tests');},
     systemStatus:async()=>[],
     synthesizeEdgeSpeech: async () => { throw new Error('TTS must be explicitly mocked in isolated tests'); },
@@ -318,7 +321,7 @@ export async function bridgeHarness({ config = {}, savedState, files = {}, globa
     cleanupTemp: () => {},
     // Exercise the real gateway on an ephemeral port, never the live desktop listener.
     startCompanionGateway: options=>startCompanionGateway({...options,port:0}),
-    ...globals,
+    knowledgePageView,buildTrace,...globals,
   });
   // Execute the pure model view in the bridge realm. Its plain-object checks
   // should see the same prototypes as real bridge messages, just as in Node.

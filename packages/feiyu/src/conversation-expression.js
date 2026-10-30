@@ -1,5 +1,6 @@
 import {defaultNaturalExpression} from './natural-expression.js';
 import {speakingStyleContext} from './speaking-style.js';
+import {ACTIVITY_FACTS_HINT} from './cognition/activity-facts.js';
 
 // The same small view serves QQ, WeChat and the desktop companion. Transport
 // capabilities, the authoritative core and current inner state belong to their
@@ -11,6 +12,6 @@ export function buildExpressionContext({card='',incoming='',expressionBlock='',n
   // Optional feedback is already packed upstream. Never cut its structured
   // text into a partial instruction when an invalid caller exceeds the budget.
   const expression=typeof expressionBlock==='string'&&expressionBlock.length<=EXPRESSION_BLOCK_MAX_CHARS?expressionBlock:'';
-  return [naturalExpression.prompt('chat',{frontendReactionInSystem}),roleStyleInSystem?'':speakingStyleContext(style,{selection:'inner-v3',incoming,styleOnly:!supplied}),expression]
+  return [naturalExpression.prompt('chat',{frontendReactionInSystem}),ACTIVITY_FACTS_HINT,roleStyleInSystem?'':speakingStyleContext(style,{selection:'inner-v3',incoming,styleOnly:!supplied}),expression]
     .filter(part=>typeof part==='string'&&part.trim()).join('\n');
 }

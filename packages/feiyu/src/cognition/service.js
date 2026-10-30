@@ -39,6 +39,7 @@ import {HistoricalReview} from './v3-history-review.js';
 import {InnerLife} from './inner-life.js';
 import {DispositionMemory} from './dispositions.js';
 import {scheduleV3Encoding,validateV3Ownership,commitUnitCoverage,snapshotMemory} from './v3-extraction.js';
+import {qualifySelfStatements,shouldRestrictStoredCompletion} from './self-statement-source-typing.js';
 
 // A host-owned runtime. No production configuration, timers, live QQ client or V1 store is imported.
 export class CharacterCognition {
@@ -75,10 +76,19 @@ export class CharacterCognition {
     const encoded=validateEncoded(bundle,materials,{verified});return this.commitEncoded(encoded,{job});
   }
   commitEncoded(encoded,{job}={}){const s=this.store;const report=s.atomic('experience-bundle-retained',()=>{
-    if(job)s.assertJob(job);const ids=encoded.memories.filter(r=>!this.inner||!r.evidence.some(e=>e.span?.length&&s.db.prepare('SELECT 1 FROM v3_forget_spans WHERE source_id=? AND revision=? AND offset<? AND offset+length>? LIMIT 1').get(e.sourceId,e.revision,e.span.offset+e.span.length,e.span.offset))).map(r=>{
+    if(job)s.assertJob(job);const qualification=qualifySelfStatements(this,encoded);encoded=qualification.bundle;
+    const ownSpeech=new Set(qualification.changes.map(c=>encoded.memories[c.index]));
+    const ids=encoded.memories.filter(r=>!this.inner||!r.evidence.some(e=>e.span?.length&&s.db.prepare('SELECT 1 FROM v3_forget_spans WHERE source_id=? AND revision=? AND offset<? AND offset+length>? LIMIT 1').get(e.sourceId,e.revision,e.span.offset+e.span.length,e.span.offset))).map(r=>{
       const scopes=[...new Set(r.evidence.map(e=>this.archive.get(e.sourceId,e.revision).metadata.scope).filter(Boolean))];r.metadata={...r.metadata,...(scopes.length?{scope:scopes.length===1?scopes[0]:'self',sourceScopes:scopes}:{})};
       if(r.kind==='experience')for(const basis of this.inner?basisSources(this,r.evidence):r.evidence.flatMap(e=>this.archive.get(e.sourceId,e.revision).metadata.basisSources||[])){if(!s.sourceRegistered(basis)||s.suppressed(basis.sourceId)||s.sourceUsable?.(basis)===false&&!r.metadata?.historicalReview&&!job?.payload?.historical)fail('EVIDENCE_UNAVAILABLE');if(r.evidence.length<20&&!r.evidence.some(ref=>ref.sourceId===basis.sourceId&&ref.revision===basis.revision))r.evidence.push({...basis,role:'context',independenceGroup:r.eventRoot});}
-      return s.writeNode(r);
+      const id=s.writeNode(r);
+      // Claim deduplication deliberately keeps a prior active node when a later
+      // generic extraction is merely tentative. A host-typed unsupported own
+      // completion is a stronger source restriction and must survive that reuse.
+      if(ownSpeech.has(r)&&r.assertion?.commitmentStatus==='fulfilled'&&r.metadata.claimedCompletion){
+        const current=s.get(id);if(current&&shouldRestrictStoredCompletion(this,current,r))this.lifecycle.revise(id,current.revision,{status:'candidate',metadata:{...current.metadata,claimedCompletion:true,sourceTyping:r.metadata.sourceTyping}});
+      }
+      return id;
     });
     if(this.inner)reconcileCommitments(this,ids);
     for(const id of ids){const current=s.get(id);if(!current)continue;const peers=new Set(current.participants.filter(p=>!p.entity_id.startsWith('character:')).map(p=>p.entity_id));for(const peer of peers){const related=s.db.prepare('SELECT DISTINCT memory_id FROM memory_entities WHERE character_id=? AND entity_id=? AND memory_id<>? ORDER BY rowid DESC LIMIT 3').all(this.characterId,peer,id);for(const row of related)if(s.get(row.memory_id))s.addEdge(id,row.memory_id,'same_entity',{provenance:'deterministic',evidence:[]});}}

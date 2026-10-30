@@ -21,6 +21,12 @@ jobs:
       - name: Core memory and transport tests
         run: npm test
         working-directory: packages/feiyu
+      - name: Contextual growth, provenance and recall
+        run: npm run test:memory-growth
+        working-directory: packages/feiyu
+      - name: Autonomous choices and self-action evidence
+        run: npm run test:agency
+        working-directory: packages/feiyu
       - name: Current UI contract
         run: node scripts/test-life-console.mjs
         working-directory: packages/feiyu

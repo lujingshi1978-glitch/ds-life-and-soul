@@ -28,7 +28,7 @@
 
 ## 公开包与本机数据
 
-源码包不包含实际 `config.json`、`state`、数据库、凭据、cookies、浏览器 profile、原 Git 历史、模型权重和虚拟环境。截图与演示 JSON 是明确标注的合成素材。
+源码包不包含实际 `config.json`、`state`、数据库、凭据、cookies、浏览器 profile、原 Git 历史、模型权重和虚拟环境。截图与演示 JSON 按素材清单分别标注合成数据、受控实验或已脱敏的真实问题材料，不公开私人原始记录。
 
 发布前运行 `node scripts/check-public-package.mjs`。ZIP 必须使用同一个枚举器批准的源文件清单，不能直接递归压缩整个已运行目录。`.gitignore` 只能避免常规 Git 误提交，不能代替内容门禁。
 

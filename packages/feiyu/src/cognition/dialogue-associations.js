@@ -1,9 +1,11 @@
-import {currentTopicCue,contextualMemoryView,expressionFeedbackApplies} from './memory-activation.js';
+import {currentTopicCue,contextualMemoryView,expressionFeedbackApplies,selfUnderstandingApplies} from './memory-activation.js';
 import {hash,clip,terms} from './contracts.js';
 import {memoryLearningEligible} from '../operational-material.js';
 import {conversationAssociations} from './stimulus-recall.js';
 import {memoryEvidenceOrigin} from './evidence-origin.js';
 import {tuningFor} from '../runtime-tuning.js';
+import {planRecallBudget} from './recall-budget.js';
+import {contextDetail} from './context-detail.js';
 
 const selfQuestion=text=>/(?:在干(?:什么|嘛)|在做什么|忙什么|最近.{0,8}(?:看|玩|做)|(?:还在|刚才|刚刚).{0,6}看|看(?:什么|啥))/u.test(text);
 const changedTopic=text=>currentTopicCue(text).changed;
@@ -14,10 +16,10 @@ export class DialogueAssociations {
  constructor(owner){this.owner=owner;this.views=new Map();this.controllers=new Set();}
  close(){for(const c of this.controllers)c.abort();this.controllers.clear();this.views.clear();}
  current(binding){const r=this.owner.runtime;return !this.owner.closed&&!r.closed&&r.store.manifest().role_epoch===binding.roleEpoch&&r.inner.head().generation===binding.generation&&r.inner.clock.epoch===binding.processEpoch;}
- async prepare(scope,{incoming='',budgetMs=900,signal}={}){
+ async prepare(scope,{incoming='',budgetMs=900,signal,contextAllowanceChars}={}){
   if(!/^private:\d+$/.test(scope)||!this.owner.isV3||!incoming.trim())return;
   const r=this.owner.runtime,tuning=tuningFor(r),binding={roleEpoch:r.store.manifest().role_epoch,generation:r.inner.head().generation,processEpoch:r.inner.clock.epoch};
-  const tuningKey=hash([tuning.memory.associationBudgetChars,tuning.memory.dialogueBudgetChars,tuning.memory.associationMaxItems,tuning.memory.maxRecallItems,tuning.text.memoryGistChars]);
+  const tuningKey=hash([tuning.memory,tuning.text.memoryGistChars,contextAllowanceChars]);
   const key=hash(incoming),previous=this.views.get(scope);if(previous?.key===key&&previous.tuningKey===tuningKey&&this.current(previous.binding)&&Date.now()-previous.at<10000)return;
   const controller=new AbortController();this.controllers.add(controller);const combined=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
   const recent=(this.owner.contacts?.recent(scope,3)||[]).filter(m=>m.at>=Date.now()-300000).map(m=>m.text||'').join(' ').slice(-400);
@@ -26,14 +28,14 @@ export class DialogueAssociations {
   let timer;const deadline=new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve({status:'unavailable',degradedChannels:['dialogue-recall-deadline'],items:[]});},Math.max(10,Math.min(1200,budgetMs)));});
   let found;
   try{
-   const work=query.trim()?Promise.resolve().then(()=>r.retriever.recall(query,{depth:'shallow',purpose:'stimulus-associate',budgetChars:tuning.memory.associationBudgetChars,signal:combined,currentInterestsOnly:true,expressionScope:scope})).then(value=>({...value,status:value.items?.length?'recalled':value.omittedForBudget?'budget-limited':'empty'}),error=>({status:'unavailable',degradedChannels:[error.code||'dialogue-recall-unavailable'],items:[]})):Promise.resolve({status:'empty',items:[],bundles:[],degradedChannels:[]});
+   const work=query.trim()?Promise.resolve().then(()=>r.retriever.recall(query,{depth:'shallow',purpose:'stimulus-associate',budgetChars:tuning.memory.associationBudgetChars,budgetPolicy:{elastic:true,contextAllowanceChars},signal:combined,currentInterestsOnly:true,expressionScope:scope})).then(value=>({...value,status:value.items?.length?'recalled':value.omittedForBudget?'budget-limited':'empty'}),error=>({status:'unavailable',degradedChannels:[error.code||'dialogue-recall-unavailable'],items:[]})):Promise.resolve({status:'empty',items:[],bundles:[],degradedChannels:[]});
    found=query.trim()?await Promise.race([work,deadline]):{status:'empty',items:[],bundles:[],degradedChannels:[]};
   }finally{clearTimeout(timer);this.controllers.delete(controller);}
   if(signal?.aborted||!this.current(binding))return;
   const memoryBundles=[];let count=0;for(const bundle of found.bundles||(found.items||[]).map(m=>({ids:[m.id]}))){if(count+bundle.ids.length>Math.min(tuning.memory.associationMaxItems,tuning.memory.maxRecallItems))continue;memoryBundles.push(bundle);count+=bundle.ids.length;}
-  const ids=memoryBundles.flatMap(b=>b.ids),memories=ids.map(id=>r.store.get(id)).filter(m=>memoryLearningEligible(r.archive,m)).map(m=>contextualMemoryView(r,m));
+  const ids=memoryBundles.flatMap(b=>b.ids),memories=ids.map(id=>r.store.get(id)).filter(m=>memoryLearningEligible(r.archive,m)&&selfUnderstandingApplies(m,{expressionScope:scope,query})).map(m=>contextualMemoryView(r,m));
   const sources=changedTopic(incoming)?[]:cards.length?cards:this.publicCards({query,ids,self:false});
-  const view={key,tuningKey,binding,at:Date.now(),incoming,status:found.status,degradedChannels:found.degradedChannels||[],memories,memoryBundles,contacts:conversationAssociations(r,memories.map(m=>m.id)),sources,currentBehavior:r.policy.state().behavior||null};
+  const view={key,tuningKey,binding,at:Date.now(),incoming,status:found.status,degradedChannels:found.degradedChannels||[],memories,memoryBundles,contacts:conversationAssociations(r,memories.map(m=>m.id)),sources,currentBehavior:r.policy.state().behavior||null,budget:found.budget,contextAllowanceChars};
   this.views.set(scope,view);if(this.views.size>20)this.views.delete(this.views.keys().next().value);
   r.inner.meta('dialogueAssociationV1',{at:now,scope,status:view.status,memoryIds:memories.map(m=>m.id),sourceIds:sources.map(s=>s.sourceId),inputHash:key,foregroundModelCalls:0});
  }
@@ -60,12 +62,17 @@ export class DialogueAssociations {
   const saved=this.views.get(scope),r=this.owner.runtime;
   const ideas=this.ideas(scope,incoming);
   if(!saved||hash(incoming)!==saved.key||!this.current(saved.binding)||Date.now()-saved.at>120000)return ideas.length?{ideas,referenceOnly:true}:null;
-  const tuning=tuningFor(r),valid=new Map(saved.memories.filter(m=>{const current=r.store.get(m.id);return current?.revision===m.revision&&memoryLearningEligible(r.archive,current)&&expressionFeedbackApplies(current,scope);}).map(m=>[m.id,contextualMemoryView(r,r.store.get(m.id))]));
+  const tuning=tuningFor(r),valid=new Map(saved.memories.filter(m=>{const current=r.store.get(m.id);return current?.revision===m.revision&&memoryLearningEligible(r.archive,current)&&expressionFeedbackApplies(current,scope)&&selfUnderstandingApplies(current,{expressionScope:scope,query:currentTopicCue(incoming).query});}).map(m=>{const live=r.store.get(m.id);return [m.id,{...contextualMemoryView(r,live),...(r.retriever.relevanceMode!=='legacy'?contextDetail(r,live,{scope,query:currentTopicCue(incoming).query}):{})}]}));
   let count=0;const bundles=saved.memoryBundles.filter(b=>{if(!b.ids.every(id=>valid.has(id))||count+b.ids.length>Math.min(tuning.memory.associationMaxItems,tuning.memory.maxRecallItems))return false;count+=b.ids.length;return true;});
   const value={status:saved.status,degradedChannels:saved.degradedChannels,memories:bundles.flatMap(b=>b.ids.map(id=>valid.get(id))),contacts:[],publicSources:saved.sources.filter(s=>this.sourceUsable(s)),ideas,currentBehavior:saved.currentBehavior,referenceOnly:true,note:'相关经历与念头供本轮自由联想，不是待完成任务。可以不提；对方换题后不自动续说。已读内容只证明当时读过；旧语音或链接失败不代表当前能力，旧承诺不自动重启。'};
   const updateContacts=()=>{value.contacts=conversationAssociations(r,value.memories.map(m=>m.id));};updateContacts();
-  while(JSON.stringify(value).length>tuning.memory.dialogueBudgetChars&&(bundles.length||value.publicSources.length||value.ideas.length)){value.omittedForBudget=true;if(bundles.length){bundles.pop();value.memories=bundles.flatMap(b=>b.ids.map(id=>valid.get(id)));updateContacts();}else if(value.publicSources.length)value.publicSources.pop();else value.ideas.pop();}
-  if(JSON.stringify(value).length>tuning.memory.dialogueBudgetChars)return {status:value.status,referenceOnly:true,omittedForBudget:true,memories:[],contacts:[],note:'本轮联想资料预算不足；没有命中或省略不等于从未发生。'};
+  if(tuning.memory.elasticRecallEnabled===0&&saved.contextAllowanceChars===undefined){while(JSON.stringify(value).length>tuning.memory.dialogueBudgetChars&&(bundles.length||value.publicSources.length||value.ideas.length)){value.omittedForBudget=true;if(bundles.length){bundles.pop();value.memories=bundles.flatMap(b=>b.ids.map(id=>valid.get(id)));updateContacts();}else if(value.publicSources.length)value.publicSources.pop();else value.ideas.pop();}const fallback={status:value.status,referenceOnly:true,omittedForBudget:true,memories:[],contacts:[],note:'本轮联想资料预算不足；没有命中或省略不等于从未发生。'};return JSON.stringify(value).length<=tuning.memory.dialogueBudgetChars?value:JSON.stringify(fallback).length<=tuning.memory.dialogueBudgetChars?fallback:null;}
+  const hasEvidence=!!(bundles.length||value.publicSources.length||value.ideas.length);
+  const plan=planRecallBudget({baseChars:tuning.memory.dialogueBudgetChars,requestedChars:hasEvidence?Math.max(tuning.memory.dialogueBudgetChars,saved.budget?.effective||0):undefined,elastic:tuning.memory.elasticRecallEnabled===1,maxExpansionRatio:tuning.memory.elasticRecallMaxRatio,contextAllowanceChars:saved.contextAllowanceChars,demandChars:hasEvidence?JSON.stringify(value).length+500:0});
+  value.budget={base:plan.base,requested:plan.requested,ceiling:plan.ceiling,effective:plan.effective,demand:plan.demand,demandIsEstimate:true,expanded:plan.expanded,reasons:plan.reasons,tokenAllowanceKnown:false};
+  while(JSON.stringify(value).length+32>plan.effective&&(bundles.length||value.publicSources.length||value.ideas.length)){value.omittedForBudget=true;if(bundles.length){bundles.pop();value.memories=bundles.flatMap(b=>b.ids.map(id=>valid.get(id)));updateContacts();}else if(value.publicSources.length)value.publicSources.pop();else value.ideas.pop();}
+  value.budget.actual=0;for(let i=0;i<3;i++)value.budget.actual=JSON.stringify(value).length;
+  if(JSON.stringify(value).length>plan.effective)return null;
   return value;
  }
 }

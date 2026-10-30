@@ -1,0 +1,17 @@
+{
+  "kind": "synthetic-explanatory-scenario",
+  "notAnExperiment": true,
+  "notACharacterMemory": true,
+  "slides": [22,23],
+  "core": "慢慢认识世界，形成自己的趣味和判断，建立值得珍惜的关系",
+  "perception": "读到一段文字：陶艺师沿歪碗的凹陷刻成河流。没有制陶实操。",
+  "meaning": "被顺着不完美寻找形状的做法吸引。",
+  "recall": "想到一位曾聊手作与挫折的合成朋友。",
+  "intention": "可以分享，也可以先不打扰；不自动成为待办。",
+  "action": "如选择发送，执行前核对许可与当前角色，按真实提交和回执记录。",
+  "storage": ["文字来源与实际已读范围", "当时理解与兴趣范围", "分享念头和对象", "真正发生的来往与回执"],
+  "nextContext": "隔天朋友说‘今天又做砸了’。",
+  "contextualInfluence": "相关来往和偏好影响理解、分寸与表达；不要求提起陶艺或解决问题。",
+  "possibleHumanWrittenReply": "想吐槽一下，还是想一起看看能怎么改？",
+  "limit": "回复人为编写，没有伪造模型输出、生产记忆或发送回执。"
+}

@@ -41,6 +41,21 @@ export function orderedRoundEvents(runtime,ids){
  const unique=[...new Set(ids)];if(!unique.length)return [];
  return runtime.store.db.prepare('SELECT event_id FROM cognitive_events WHERE character_id=? AND event_id IN (SELECT value FROM json_each(?)) ORDER BY rowid DESC LIMIT 12').all(runtime.characterId,JSON.stringify(unique)).reverse().map(r=>r.event_id);
 }
+// Configuration is context, not an occurrence caused by the current I/O round.
+// A first self-read can otherwise pick up an old, never-intaken migration and
+// make the whole decision retrospective. Keep that source in its original
+// archive/background path; do not mark it integrated or strip ordinary history.
+export function currentRoundTriggerIds(runtime,behavior,ids){
+ if(!['chat','web','bili','qzone'].includes(behavior?.kind))return ids;
+ return ids.filter(id=>{
+  const event=runtime.store.db.prepare('SELECT kind FROM cognitive_events WHERE character_id=? AND event_id=?').get(runtime.characterId,id);
+  if(event?.kind==='configuration-imported')return false;
+  const refs=runtime.store.db.prepare('SELECT source_id,source_revision FROM event_sources WHERE character_id=? AND event_id=?').all(runtime.characterId,id);
+  if(!refs.length)return true;
+  const config=refs.map(ref=>{try{const d=runtime.archive.get(ref.source_id,ref.source_revision);return d.kind==='configuration'||['inner-config','disposition-migration'].includes(d.adapter);}catch{return false;}});
+  return !config.every(Boolean);
+ });
+}
 export function roundReflectionEvents(owner,behavior,ids){
  // Repair already queued rounds as well as new ones. Old payloads accidentally
  // retained twelve inputs and truncated every subsequently sent reply.
@@ -48,5 +63,5 @@ export function roundReflectionEvents(owner,behavior,ids){
  const following=owner.runtime.store.db.prepare("SELECT min(json_extract(payload_json,'$.behavior.startedAt')) at FROM jobs WHERE kind='reflect' AND coalesce(json_extract(payload_json,'$.behavior.eventScope'),json_extract(payload_json,'$.behavior.scope'))=? AND json_extract(payload_json,'$.behavior.startedAt')>?").get(behavior.eventScope||behavior.scope,behavior.startedAt)?.at;
  const rows=owner.runtime.store.db.prepare('SELECT e.event_id,s.source_id,s.source_revision,e.occurred_at FROM cognitive_events e JOIN event_sources s USING(character_id,event_id) WHERE e.rowid>? AND e.occurred_at>=? AND e.occurred_at<=? ORDER BY e.rowid DESC LIMIT 200').all(behavior.eventWatermark||0,behavior.startedAt,Math.min(end,following?following-1:end));
  const extra=rows.filter(r=>{try{const d=owner.runtime.archive.get(r.source_id,r.source_revision);return d.metadata.scope===(behavior.eventScope||behavior.scope);}catch{return false;}}).map(r=>r.event_id);
- return orderedRoundEvents(owner.runtime,[...ids,...extra]);
+ return orderedRoundEvents(owner.runtime,currentRoundTriggerIds(owner.runtime,behavior,[...ids,...extra]));
 }
