@@ -25,3 +25,8 @@ packages/feiyu/audio/
 **/embedding.local.json
 dist/
 *.local.json
+
+# Private release material and local Windows build output
+*.private.pem
+release-signing*.pem
+packaging/windows/out/

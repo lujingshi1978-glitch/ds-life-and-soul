@@ -273,10 +273,10 @@ test('stop refuses an unverified PID and preserves its record', { skip: process.
 
 function fakeProcesses() {
   const rows = [
-    { ProcessId: 41, ParentProcessId: 1, ExecutablePath: 'node.exe', CommandLine: 'node isolated-dsh', CreationDate: 'first' },
-    { ProcessId: 42, ParentProcessId: 41, ExecutablePath: 'node.exe', CommandLine: 'node isolated-mcp', CreationDate: 'second' },
-    { ProcessId: 43, ParentProcessId: 42, ExecutablePath: 'node.exe', CommandLine: 'node isolated-grandchild', CreationDate: 'third' },
-    { ProcessId: 99, ParentProcessId: 1, ExecutablePath: 'node.exe', CommandLine: 'node other-service', CreationDate: 'other' },
+    { ProcessId: 41, ParentProcessId: 1, ExecutablePath: 'node.exe', CommandLine: 'node isolated-dsh', CreationDate: '2026-01-01T00:00:01Z' },
+    { ProcessId: 42, ParentProcessId: 41, ExecutablePath: 'node.exe', CommandLine: 'node isolated-mcp', CreationDate: '2026-01-01T00:00:02Z' },
+    { ProcessId: 43, ParentProcessId: 42, ExecutablePath: 'node.exe', CommandLine: 'node isolated-grandchild', CreationDate: '2026-01-01T00:00:03Z' },
+    { ProcessId: 99, ParentProcessId: 1, ExecutablePath: 'node.exe', CommandLine: 'node other-service', CreationDate: '2025-01-01T00:00:01Z' },
   ];
   const live = new Map(rows.map(row => [row.ProcessId, row]));
   const killed = [], backend = { inspect: pid => live.get(pid) || null, list: () => rows, terminate: record => { killed.push(record.pid); live.delete(record.pid); return 'stopped'; } };

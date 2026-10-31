@@ -23,10 +23,15 @@ export async function ephemeralThought(llm, input, signal, {meter=()=>{},attachm
   let text = '', finish, usage, outcome='failed';
   try {
     signal?.throwIfAborted();
+    const provider=input.provider||'deepseek-official',model=input.model||'deepseek-flash';
+    const modelInfo=typeof llm.resolveModelInfo==='function'?await llm.resolveModelInfo(provider,model,signal):null;
+    const offered=modelInfo?.reasoning?.efforts?.map(e=>e.id);
+    const effort=modelInfo===null?'low':offered?.includes('low')?'low':offered?.includes('off')?'off':undefined;
+    const maxTokens=Math.min(12000,modelInfo?.defaultMaxTokens||12000);
     for await (const chunk of llm.stream({
       provider: input.provider || 'deepseek-official', model: input.model || 'deepseek-flash',
-      reasoningEffort: 'low', system: String(input.core || '').slice(0, 10000) + outputContract,
-      messages, tools: [], maxTokens: 12000, signal,
+      ...(effort===undefined?{}:{reasoningEffort:effort}), system: String(input.core || '').slice(0, 10000) + outputContract,
+      messages, tools: [], maxTokens, signal,
     })) {
       signal?.throwIfAborted();
       if (chunk.type === 'text-delta') text += chunk.text;

@@ -1,0 +1,6 @@
+Deployment controller source is manager.mjs; the installed worker is payload/app/scripts/oneclick-worker.mjs.
+The native GUI and stable bootstrap C# sources are included here. Build with the Windows .NET Framework C# compiler and System.Windows.Forms/System.Web.Extensions references.
+Native runtime sources and exact versions are listed under licenses/RUNTIME-SOURCES.txt; npm projects carry package-lock.json and Python voice constraints are in payload/app/portable/voice-runtime.
+A release manifest lists every distributed file and its SHA256. Sign its exact UTF-8 bytes using Ed25519; manager.mjs pins the corresponding public key.
+Maintainers must keep the same private signing key outside the repository for subsequent compatible updates. No private signing key, API credentials or instance database is included in this package.
+The default data-format revision is 1. A future incompatible database revision needs a separately tested migration; the current updater refuses it.

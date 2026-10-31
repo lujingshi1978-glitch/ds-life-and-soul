@@ -19,6 +19,14 @@ function fixture(t) {
   return { root, put };
 }
 
+test('reviewed Windows packaging sources do not admit private keys, binaries or extra scripts',()=>{
+  for(const file of ['Launcher.cs','Bootstrap.cs','manager.mjs','NativeUiSmoke.cs','build-ui.ps1','test-native.ps1','README.md','BUILD-NOTES.txt','RUNTIME-SOURCES.txt','verify-release.mjs'])assert.equal(classifyPublicPath('packaging/windows/'+file),null);
+  assert.equal(classifyPublicPath('packaging/windows/release-signing.private.pem'),'non-source-artifact');
+  assert.equal(classifyPublicPath('packaging/windows/Feiyu.UI.exe'),'non-source-artifact');
+  assert.equal(classifyPublicPath('packaging/windows/extra.mjs'),'outside-source-allowlist');
+  assert.equal(classifyPublicPath('packaging/windows/config.json'),'private-config');
+});
+
 test('release enumeration excludes installation trees without reading their contents', t => {
   const { root, put } = fixture(t);
   put('README.md', 'A portable source release.');

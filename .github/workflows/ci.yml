@@ -18,6 +18,8 @@ jobs:
         working-directory: packages/feiyu
       - name: Deployment and public package tests
         run: node --test tests/*.mjs
+      - name: Native Windows launcher and Unicode shortcuts
+        run: ./packaging/windows/test-native.ps1
       - name: Core memory and transport tests
         run: npm test
         working-directory: packages/feiyu

@@ -1,0 +1,8 @@
+Node 24.19.0: https://nodejs.org/download/release/v24.19.0/
+CPython 3.11.15 Astral standalone build 20260610: https://github.com/astral-sh/python-build-standalone/releases/tag/20260610
+DSH 0.2.0-rc.2: https://github.com/deepseek-ai/deepseek-harness
+Python packages retain their dist-info license metadata; PySide6 is LGPLv3/GPLv3/commercial, used unmodified as shared libraries. You may replace the Python/PySide shared runtime; no technical relinking restriction is imposed. Upstream source: https://code.qt.io/pyside/pyside-setup.git/
+Whisper small weights: https://huggingface.co/Systran/faster-whisper-small/tree/536b0662742c02347bc0e980a01041f333bce120
+All transitive licenses remain in node_modules and Python dist-info. No PyMuPDF or external QQ gateway is bundled.
+
+App-local Microsoft C/C++ runtime companions are copied without modification from the included official PySide6 wheel; the original wheel copies and upstream notices are retained. No system-wide Visual C++ installation or PATH change is performed.

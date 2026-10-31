@@ -24,6 +24,14 @@ const validIdentity = (value) =>
   ["ExecutablePath", "CommandLine", "CreationDate"].every(
     (key) => typeof value[key] === "string" && value[key].length > 0,
   );
+// A Windows ParentProcessId is a number, not a durable parent identity. After
+// PID reuse, an unrelated older process may report the new root's PID as PPID.
+export function creationTime(value) {
+  if(typeof value !== 'string')return null;
+  const legacy=value.match(/^\/Date\((-?\d+)(?:[+-]\d{4})?\)\/$/);
+  const n=legacy?Number(legacy[1]):Date.parse(value);
+  return Number.isFinite(n)?n:null;
+}
 export function identityHash(value) {
   // This field order matches the original deployment registry format.
   const identity = {
@@ -166,6 +174,12 @@ export function snapshotOwned(records, { backend = {} } = {}) {
           candidate.ParentProcessId === row.ProcessId &&
           candidate.ProcessId !== row.ProcessId,
       )) {
+        const parentTime=creationTime(row.CreationDate),childTime=creationTime(child.CreationDate);
+        if(parentTime!==null&&childTime!==null&&childTime<parentTime)continue;
+        if(!validIdentity(child)||parentTime===null||childTime===null){
+          unverified.push({id:parent.id+":child:"+child.ProcessId,pid:child.ProcessId,parentId:parent.id,parentPid:row.ProcessId,identityHash:null,reason:"child-identity-unavailable"});
+          continue;
+        }
         queue.push({
           row: child,
           record: {

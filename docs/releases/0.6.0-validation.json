@@ -1,0 +1,105 @@
+{
+  "version": "0.6.0",
+  "date": "2026-10-31",
+  "archiveSha256": "a574a1b97390e0dfe197eb99fa3ce88afe3f8123d793b1c314b3edfebdee9bc2",
+  "manifestSha256": "064bc7d2d41e8531beef6b307811ea78143dbc044a01706fd8637ffb0dc3f9fc",
+  "cleanWindows": {
+    "os": "Microsoft Windows 11 Enterprise LTSC Evaluation",
+    "standardUser": true,
+    "preinstalledNodePythonDSH": false,
+    "passedStages": 14
+  },
+  "stages": [
+    {
+      "name": "no-preinstalled-development-tools",
+      "ok": true
+    },
+    {
+      "name": "offline-private-runtime-install",
+      "ok": true
+    },
+    {
+      "name": "actual-memory-seeded",
+      "ok": true
+    },
+    {
+      "name": "restart-without-first-run-reset",
+      "ok": true
+    },
+    {
+      "name": "api-through-native-dsh-and-desktop",
+      "ok": true
+    },
+    {
+      "name": "bundled-offline-asr-real-decoding",
+      "ok": true
+    },
+    {
+      "name": "voice-client-and-caption-tests",
+      "ok": true
+    },
+    {
+      "name": "voice-to-subtitle-ui",
+      "ok": true
+    },
+    {
+      "name": "real-windows-hotkey-registration",
+      "ok": true
+    },
+    {
+      "name": "failed-upgrade-restores-version-and-memory",
+      "ok": true
+    },
+    {
+      "name": "upgrade-preserves-memory-and-credentials",
+      "ok": true
+    },
+    {
+      "name": "manual-rollback-keeps-both-snapshots",
+      "ok": true
+    },
+    {
+      "name": "power-loss-restart-recovery",
+      "ok": true
+    },
+    {
+      "name": "clean-stop-without-residual-processes",
+      "ok": true
+    }
+  ],
+  "specializedTests": {
+    "processOwnershipPassed": 7,
+    "modelCapabilityPassed": 3,
+    "voiceClientPassed": 21,
+    "publicPassed": 26,
+    "privateHistoricalSkipped": 13
+  },
+  "nativeUiFollowup": {
+    "passed": true,
+    "roundTripActions": [
+      "status",
+      "configure",
+      "stop",
+      "status"
+    ],
+    "foreignShortcutsPreserved": 4,
+    "customHomeShortcutsVerified": 2,
+    "fullGuestRunManifest": "bc75d063daad05bd2ed9a46f7e17d4222fa3c2f2ecf0a8b4864a8f3904442e50",
+    "finalManifest": "064bc7d2d41e8531beef6b307811ea78143dbc044a01706fd8637ffb0dc3f9fc",
+    "onlyNativeUiAndItsSourceChanged": true
+  },
+  "limitations": [
+    "未测试物理麦克风拾音、声卡播放效果和真实社交账号登录；语音使用合成音频及界面测试",
+    "API 完整链路使用本地兼容模型，无新增付费模型调用；不是云服务可用率测试",
+    "仅完成 Windows 11 x64 验收；未声称 Windows 10 / ARM 兼容",
+    "QQ 网关、PDF 可选组件、向量模型与受限创造执行环境不默认打包",
+    "虚拟机 NAT 用于交付和回传，没有另做物理断网安装测试",
+    "升级验收使用相同数据格式的 0.6.1-qa；不代表跨数据库格式迁移已经通过。当前实现会拒绝不兼容格式。",
+    "升级和回退针对本部署器管理的实例；不会自动接管旧开发目录或散装部署目录。"
+  ],
+  "externalModelCalls": 0,
+  "externalSocialMessages": 0,
+  "physicalMicrophoneTested": false,
+  "testData": "synthetic; local compatible model and synthesized audio",
+  "productionMutation": false
+}

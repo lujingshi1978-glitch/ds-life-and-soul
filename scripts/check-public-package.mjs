@@ -10,6 +10,7 @@ export const PLUGINS = ['feiyu-life', 'qq-contact-memory', 'qq-intimacy-judge', 
 const nativePath = 'packages/feiyu/plugins/qq-agent-presets/creator-pipe-shim.node';
 const sourceExtensions = new Set(['.js', '.mjs', '.cjs', '.py', '.c', '.cs', '.ps1', '.cmd', '.sh', '.sql', '.json', '.md', '.txt', '.yml', '.yaml', '.toml', '.html', '.css', '.svg']);
 const rootFiles = new Set(['README.md', 'README.en.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'SECURITY.md', 'CONTRIBUTING.md', 'package.json', 'package-lock.json', '.gitignore', '.gitattributes', 'start.cmd', 'start.sh', 'stop.cmd', 'stop.sh', '启动肥鱼.cmd']);
+const windowsPackagingFiles = new Set(['Bootstrap.cs','BUILD-NOTES.txt','build-ui.ps1','Launcher.cs','manager.mjs','NativeUiSmoke.cs','README.md','RUNTIME-SOURCES.txt','test-native.ps1','verify-release.mjs'].map(name=>'packaging/windows/'+name));
 const privateDirectories = new Set(['state', 'config', 'cognition-v3', 'audio', 'logs', 'log', 'cache', 'caches', '.cache', 'chat-history', 'conversations', 'credentials', 'cookies', '.ssh', '.aws', '.npm', '.pnpm-store']);
 const ignoredDirectories = new Set(['.git', 'node_modules', '.local', '.runtime', 'work', '.venv', 'venv', '__pycache__', '.pytest_cache', '.ruff_cache', 'dist', '.build', '.scratch', 'models', '.models', '.uv', '.mypy_cache', '.tox', 'site-packages']);
 const artifactExtensions = new Set(['.pptx', '.pdf', '.png', '.jpg', '.jpeg', '.webp']);
@@ -30,6 +31,7 @@ export function classifyPublicPath(relative, { directory = false } = {}) {
   if (normalized === nativePath) return null;
   if (normalized.endsWith('.node')) return 'unreviewed-native';
   if (rootFiles.has(normalized)) return null;
+  if (windowsPackagingFiles.has(normalized)) return null;
   const extension = path.posix.extname(basename).toLowerCase();
   const textFile = sourceExtensions.has(extension) || /^(?:LICENSE(?:[.-].*)?|.*-LICENSE|NOTICE(?:[.-].*)?|COPYING|\.gitignore)$/i.test(basename);
   if (/^(?:scripts|tests|templates|licenses|examples)\//.test(normalized) && textFile) return null;

@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {ephemeralThought} from '../packages/feiyu/plugins/qq-agent-presets/feiyu-thought-host.mjs';
+async function run(info){let input;const llm={resolveModelInfo:async()=>info,stream:async function*(options){input=options;yield {type:'text-delta',text:'{"reply":"本机验收"}'};yield {type:'finish',reason:{kind:'stop'}};}};const result=await ephemeralThought(llm,{provider:'local-fixture',model:'fixture',prompt:'hello'},new AbortController().signal);assert.equal(result.receipt.transcriptPersisted,false);return input;}
+test('non-reasoning custom model is not asked for unsupported low effort',async()=>{const call=await run({defaultMaxTokens:8192});assert.equal(call.reasoningEffort,undefined);assert.equal(call.maxTokens,8192);});
+test('reasoning model still uses low where offered',async()=>{const call=await run({reasoning:{efforts:[{id:'off'},{id:'low'},{id:'high'}]},defaultMaxTokens:32768});assert.equal(call.reasoningEffort,'low');assert.equal(call.maxTokens,12000);});
+test('off-only route receives off without fabricating capability',async()=>{assert.equal((await run({reasoning:{efforts:[{id:'off'}]}})).reasoningEffort,'off');});
